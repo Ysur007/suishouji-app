@@ -10,12 +10,24 @@ interface Props {
   side: 'them' | 'me';
   fresh?: boolean;
   folderLabel?: string | null;
+  /** 群聊里显示对方用户名 */
+  authorLabel?: string | null;
   onOpen: (memo: Memo) => void;
   onMenu: (x: number, y: number, memo: Memo) => void;
   onImage: (src: string) => void;
 }
 
-export function MemoBubble({ memo, index, side, fresh, folderLabel, onOpen, onMenu, onImage }: Props) {
+export function MemoBubble({
+  memo,
+  index,
+  side,
+  fresh,
+  folderLabel,
+  authorLabel,
+  onOpen,
+  onMenu,
+  onImage,
+}: Props) {
   const press = useLongPress((point) => onMenu(point.x, point.y, memo));
 
   return (
@@ -37,6 +49,8 @@ export function MemoBubble({ memo, index, side, fresh, folderLabel, onOpen, onMe
         </div>
       )}
 
+      <div className="row__main">
+        {side === 'them' && authorLabel ? <div className="row__author">{authorLabel}</div> : null}
       <div
         className={`bubble${fresh ? ' bubble--just' : ''}`}
         {...press}
@@ -95,6 +109,7 @@ export function MemoBubble({ memo, index, side, fresh, folderLabel, onOpen, onMe
         >
           <IconMore />
         </button>
+        </div>
       </div>
 
       <span className="row__time">{formatTime(memo.createdAt)}</span>

@@ -1,7 +1,7 @@
 import { onAuthChange, onOp } from './bus';
 import { debounce, idbGet, idbSet } from './idb';
 import { bucketOf, pendingKey, persistNow, seqKey, useApp } from './store';
-import type { Op, Peer } from './types';
+import type { Group, Op, Peer } from './types';
 
 type ServerMessage =
   | { type: 'ready'; seq: number; minSeq: number; peers: Peer[]; serverTime: number }
@@ -10,6 +10,7 @@ type ServerMessage =
   | { type: 'reset'; seq: number; records: Array<Record<string, unknown>> }
   | { type: 'ack'; seq: number; ids: string[] }
   | { type: 'presence'; peers: Peer[] }
+  | { type: 'groups'; groups: Group[] }
   | { type: 'unauthorized'; reason: string }
   | { type: 'pong' };
 
@@ -318,6 +319,10 @@ class SyncClient {
       }
       case 'presence': {
         app.setPeers(msg.peers);
+        break;
+      }
+      case 'groups': {
+        app.setGroups(msg.groups);
         break;
       }
       case 'unauthorized': {

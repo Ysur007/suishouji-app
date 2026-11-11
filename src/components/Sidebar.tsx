@@ -1,5 +1,15 @@
 import { motion } from 'framer-motion';
-import { BrandGlyph, IconDevice, IconFolder, IconRecord, IconSpace, IconTimeline } from './Icons';
+import {
+  BrandGlyph,
+  IconDevice,
+  IconFolder,
+  IconPlus,
+  IconRecord,
+  IconSpace,
+  IconTimeline,
+  IconUser,
+  IconUsers,
+} from './Icons';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
 
@@ -60,9 +70,17 @@ export function Sidebar() {
   const user = useApp((s) => s.user);
   const lastUser = useApp((s) => s.lastUser);
   const signOut = useApp((s) => s.signOut);
+  const groups = useApp((s) => s.groups);
+  const activeSpace = useApp((s) => s.activeSpace);
+  const viewBucket = useApp((s) => s.viewBucket);
+  const setActiveSpace = useApp((s) => s.setActiveSpace);
   const openSheet = useUI((s) => s.open);
 
-  const memoCount = liveMemos(memos).length;
+  const allMemos = liveMemos(memos);
+  const memoCount = allMemos.filter((m) => (m.spaceId ?? viewBucket) === viewBucket).length;
+  const groupList = Object.values(groups).sort((a, b) => a.createdAt - b.createdAt);
+  const groupCount = (id: string) =>
+    allMemos.filter((m) => m.spaceId === `g:${id}` || m.spaceId === id).length;
   const folderList = liveFolders(folders);
   const recent = folderList.slice(0, 4);
 
@@ -92,13 +110,54 @@ export function Sidebar() {
             key={item.key}
             className="nav__item"
             data-active={tab === item.key}
-            onClick={() => setTab(item.key)}
+            onClick={() => {
+              if (item.key !== 'record') setActiveSpace(viewBucket);
+              setTab(item.key);
+            }}
           >
             {item.icon}
             <span>{item.label}</span>
             <span className="nav__count">{item.count}</span>
           </button>
         ))}
+      </nav>
+
+      <nav className="nav">
+        <div className="nav__label">共享</div>
+        <button
+          className="nav__item"
+          data-active={activeSpace === viewBucket}
+          onClick={() => setActiveSpace(viewBucket)}
+        >
+          <IconUser />
+          <span>我的记录</span>
+          <span className="nav__count">{memoCount}</span>
+        </button>
+        {groupList.map((g) => (
+          <button
+            key={g.id}
+            className="nav__item"
+            data-active={activeSpace === `g:${g.id}`}
+            onClick={() => setActiveSpace(`g:${g.id}`)}
+          >
+            <IconUsers />
+            <span
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {g.name}
+            </span>
+            <span className="nav__count">{groupCount(g.id)}</span>
+          </button>
+        ))}
+        {user ? (
+          <button
+            className="nav__item nav__item--ghost"
+            onClick={() => openSheet({ kind: 'new-group' })}
+          >
+            <IconPlus />
+            <span>新建群</span>
+          </button>
+        ) : null}
       </nav>
 
       {recent.length > 0 && (

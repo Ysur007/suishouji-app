@@ -118,6 +118,7 @@ const server = http.createServer(async (req, res) => {
       seq: store.seq,
       records: store.recordCount,
       users: store.userCount,
+      groups: store.groupCount,
       clients: [...wss.clients].filter((c) => c.readyState === WebSocket.OPEN).length,
       uptime: Math.round((Date.now() - startedAt) / 1000),
     });
@@ -151,14 +152,83 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/auth/me') {
-    const user = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
-    if (!user) return json(res, 401, { error: '未登录或登录已失效' });
-    return json(res, 200, { user });
+    const me = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
+    if (!me) return json(res, 401, { error: '未登录或登录已失效' });
+    return json(res, 200, { user: me });
+  }
+
+  /* ----------------------------- 群组 ----------------------------- */
+
+  const user = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
+
+  if (pathname.startsWith('/api/groups')) {
+    if (!user) return json(res, 401, { error: '未登录' });
+
+    if (pathname === '/api/groups' && req.method === 'GET') {
+      return json(res, 200, { groups: store.groupsOf(user.id) });
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const body = JSON.parse(await readBody(req, 64 * 1024)) as Record<string, unknown>;
+
+        if (pathname === '/api/groups') {
+          const result = store.createGroup(user.id, String(body.name ?? ''));
+          if (!result.ok) return json(res, result.code, { error: result.error });
+          pushGroups([user.id]);
+          return json(res, 200, { group: result.group, groups: store.groupsOf(user.id) });
+        }
+
+        if (pathname === '/api/groups/invite') {
+          const groupId = String(body.groupId ?? '');
+          const before = store.groupById(groupId);
+          const usernames = Array.isArray(body.usernames) ? (body.usernames as string[]) : [];
+          const result = store.invite(groupId, user.id, usernames);
+          if (!result.ok) return json(res, result.code, { error: result.error });
+          const after = result.group;
+          const added = after.members
+            .map((m) => m.id)
+            .filter((id) => !(before?.members.some((m) => m.id === id) ?? false));
+          pushGroups(
+            after.members.map((m) => m.id),
+            added,
+          );
+          return json(res, 200, { group: after, groups: store.groupsOf(user.id) });
+        }
+
+        if (pathname === '/api/groups/rename') {
+          const result = store.renameGroup(String(body.groupId ?? ''), user.id, String(body.name ?? ''));
+          if (!result.ok) return json(res, result.code, { error: result.error });
+          pushGroups(result.group.members.map((m) => m.id));
+          return json(res, 200, { group: result.group, groups: store.groupsOf(user.id) });
+        }
+
+        if (pathname === '/api/groups/remove') {
+          const groupId = String(body.groupId ?? '');
+          const targetId = String(body.userId ?? '');
+          const result = store.removeMember(groupId, user.id, targetId);
+          if (!result.ok) return json(res, result.code, { error: result.error });
+          const members = result.group.members.map((m) => m.id);
+          pushGroups([...members, targetId], [targetId]);
+          return json(res, 200, { group: result.group, groups: store.groupsOf(user.id) });
+        }
+
+        if (pathname === '/api/groups/leave') {
+          const groupId = String(body.groupId ?? '');
+          const result = store.leaveGroup(groupId, user.id);
+          if (!result.ok) return json(res, result.code, { error: result.error });
+          const members = result.group ? result.group.members.map((m) => m.id) : [];
+          pushGroups([...members, user.id], [user.id]);
+          return json(res, 200, { groups: store.groupsOf(user.id) });
+        }
+      } catch (err) {
+        return json(res, 400, { error: (err as Error).message });
+      }
+      return json(res, 404, { error: 'not found' });
+    }
   }
 
   /* ----------------------------- 数据 ----------------------------- */
-
-  const user = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
 
   if (pathname === '/api/snapshot') {
     if (!user) return json(res, 401, { error: '未登录' });
@@ -187,7 +257,12 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req)) as { ops?: Op[] };
       const ops = Array.isArray(body.ops) ? body.ops : [];
       const accepted = store.applyMany(ops, user.id);
-      if (accepted.length) broadcast({ type: 'ops', seq: store.seq, ops: accepted }, user.id);
+      if (accepted.length) {
+        broadcastSpaces(
+          new Set(accepted.map((op) => op.spaceId)),
+          { type: 'ops', seq: store.seq, ops: accepted },
+        );
+      }
       return json(res, 200, { seq: store.seq, applied: accepted.length });
     } catch (err) {
       return json(res, 400, { error: (err as Error).message });
@@ -226,17 +301,39 @@ function peersOf(userId: string): Peer[] {
   return peers;
 }
 
-/** 只广播给同一账号的连接 */
-function broadcast(msg: ServerMessage, userId: string, except?: WebSocket) {
+/** 广播给「能看到这些空间」的所有连接：个人空间只有本人，群空间发给全部成员 */
+function broadcastSpaces(spaces: Set<string>, msg: ServerMessage, except?: WebSocket) {
   for (const ws of wss.clients) {
     if (ws === except) continue;
     const m = meta.get(ws);
-    if (m?.userId === userId) send(ws, msg);
+    if (!m) continue;
+    for (const space of spaces) {
+      if (store.canAccess(m.userId, space)) {
+        send(ws, msg);
+        break;
+      }
+    }
+  }
+}
+
+/** 群信息变更：给每个受影响的人推最新群列表，需要重建视图的再补一份快照 */
+function pushGroups(userIds: string[], resetFor: string[] = []) {
+  const resetSet = new Set(resetFor);
+  for (const ws of wss.clients) {
+    const m = meta.get(ws);
+    if (!m || !userIds.includes(m.userId)) continue;
+    send(ws, { type: 'groups', groups: store.groupsOf(m.userId) });
+    if (resetSet.has(m.userId)) {
+      send(ws, { type: 'reset', seq: store.seq, records: store.allRecords(m.userId) });
+    }
   }
 }
 
 function broadcastPresence(userId: string) {
-  broadcast({ type: 'presence', peers: peersOf(userId) }, userId);
+  for (const ws of wss.clients) {
+    const m = meta.get(ws);
+    if (m?.userId === userId) send(ws, { type: 'presence', peers: peersOf(userId) });
+  }
 }
 
 wss.on('connection', (ws) => {
@@ -272,6 +369,8 @@ wss.on('connection', (ws) => {
         serverTime: Date.now(),
       });
 
+      send(ws, { type: 'groups', groups: store.groupsOf(user.id) });
+
       const since = Number(msg.since ?? 0);
       const ops = Number.isFinite(since) ? store.since(since, user.id) : null;
       if (ops) {
@@ -293,9 +392,19 @@ wss.on('connection', (ws) => {
     if (msg.type === 'ops' && Array.isArray(msg.ops)) {
       const accepted = store.applyMany(msg.ops, me.userId);
       if (accepted.length) {
-        broadcast({ type: 'ops', seq: store.seq, ops: accepted }, me.userId, ws);
+        broadcastSpaces(
+          new Set(accepted.map((op) => op.spaceId)),
+          { type: 'ops', seq: store.seq, ops: accepted },
+          ws,
+        );
       }
       send(ws, { type: 'ack', seq: store.seq, ids: msg.ops.map((o) => o.id) });
+      return;
+    }
+
+    if (msg.type === 'resync') {
+      send(ws, { type: 'groups', groups: store.groupsOf(me.userId) });
+      send(ws, { type: 'reset', seq: store.seq, records: store.allRecords(me.userId) });
       return;
     }
 

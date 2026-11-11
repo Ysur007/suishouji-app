@@ -3,8 +3,16 @@ export type OpKind = 'put' | 'del';
 
 export interface Memo {
   id: string;
-  /** 创建者设备 id，写入后不再变更，用于决定气泡在左还是右 */
+  /** 创建者设备 id，用于「来自哪台设备」的展示 */
   authorId?: string;
+  /** 创建者账号 id：气泡在左还是右按它判断，同一账号多台设备一致 */
+  ownerId?: string;
+  /** 创建者用户名快照，群聊里显示在气泡上方 */
+  ownerName?: string;
+  /** 归属空间：个人 `u:<userId>` 或群 `g:<groupId>` */
+  spaceId?: string;
+  /** 由哪条记录共享而来（群里的副本指向原记录） */
+  sharedFrom?: string;
   text: string;
   images: string[];
   folderId: string | null;
@@ -13,6 +21,20 @@ export interface Memo {
   updatedAt: number;
   hlc: string;
   deleted: boolean;
+}
+
+export interface GroupMember {
+  id: string;
+  username: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: GroupMember[];
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Folder {
@@ -33,6 +55,8 @@ export type ToneKey = 'sand' | 'clay' | 'stone' | 'moss' | 'ink' | 'plum';
 export interface Op {
   id: string;
   entityId: string;
+  /** 记录归属空间，缺省视为作者的个人空间 */
+  spaceId?: string;
   clientId: string;
   hlc: string;
   entity: EntityKind;

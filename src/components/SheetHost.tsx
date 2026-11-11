@@ -5,6 +5,7 @@ import { MemoEditorBody } from './MemoEditor';
 import { NewFolderBody, RenameFolderBody } from './NewFolderSheet';
 import { SettingsBody } from './SettingsSheet';
 import { AuthBody } from './AuthSheet';
+import { GroupBody, NewGroupBody } from './GroupSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -17,7 +18,9 @@ export function SheetHost() {
         ? `rename:${sheet.folderId}`
         : sheet.kind === 'auth'
           ? `auth:${sheet.mode}`
-          : sheet.kind
+          : sheet.kind === 'group'
+            ? `group:${sheet.groupId}`
+            : sheet.kind
     : 'none';
 
   return (
@@ -32,6 +35,8 @@ export function SheetHost() {
             )}
             {sheet.kind === 'settings' && <SettingsBody onClose={close} />}
             {sheet.kind === 'auth' && <AuthBody mode={sheet.mode} onClose={close} />}
+            {sheet.kind === 'new-group' && <NewGroupBody onClose={close} />}
+            {sheet.kind === 'group' && <GroupBody groupId={sheet.groupId} onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

@@ -6,6 +6,8 @@ export type Sheet =
   | { kind: 'rename-folder'; folderId: string }
   | { kind: 'settings' }
   | { kind: 'auth'; mode: 'login' | 'register' }
+  | { kind: 'new-group' }
+  | { kind: 'group'; groupId: string }
   | { kind: 'lightbox'; src: string }
   | null;
 

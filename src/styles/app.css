@@ -2225,3 +2225,135 @@ textarea.field__input {
   font-weight: 600;
   text-decoration-color: var(--ink);
 }
+
+
+/* 群聊：对方气泡上方的用户名 */
+.row__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+/* 气泡宽度以整行为基准（和加这层包裹之前一致），不要被收缩后的父级二次压缩 */
+.row__main .bubble {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.row__author {
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 0 0 4px 4px;
+  letter-spacing: 0.01em;
+}
+
+.row--them .row__main {
+  align-items: flex-start;
+}
+
+.row--me .row__main {
+  align-items: flex-end;
+}
+
+/* ------------------------------------------------------------------ *
+ * 群组
+ * ------------------------------------------------------------------ */
+
+.nav__item--ghost {
+  color: var(--ink-3);
+}
+
+.nav__item--ghost:hover {
+  color: var(--ink);
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 4px;
+  border-radius: 10px;
+}
+
+.member + .member {
+  border-top: 1px solid var(--line-soft, rgba(10, 10, 10, 0.06));
+}
+
+.member__avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  flex: none;
+}
+
+.member__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.member__me {
+  color: var(--ink-4);
+  font-size: 11.5px;
+}
+
+.member__owner {
+  margin-left: 6px;
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-3);
+  color: var(--ink-3);
+}
+
+.group-title-btn {
+  text-align: left;
+  border-radius: 8px;
+  padding: 1px 4px;
+  margin-left: -4px;
+  transition: background 0.16s ease;
+}
+
+.group-title-btn:hover {
+  background: var(--surface-3);
+}
+
+.group-name-input {
+  width: 100%;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 2px;
+}
+
+.icon-btn--bordered {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+}
+
+.field__hint {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  padding: 2px 2px 0;
+}

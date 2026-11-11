@@ -41,6 +41,36 @@ export function IconFolder(p: P) {
   );
 }
 
+export function IconUser(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <circle cx="12" cy="8.6" r="3.4" />
+      <path d="M5.4 19.4c0-3.2 3-5.8 6.6-5.8s6.6 2.6 6.6 5.8" />
+    </svg>
+  );
+}
+
+export function IconUsers(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <circle cx="9.4" cy="9" r="3.1" />
+      <path d="M3.8 19.2c0-2.9 2.5-5.2 5.6-5.2s5.6 2.3 5.6 5.2" />
+      <path d="M16 6.2a3 3 0 0 1 0 5.8M17.6 14.4c1.7.6 2.9 2.2 2.9 4.1" />
+    </svg>
+  );
+}
+
+export function IconShare(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <circle cx="17.4" cy="6.4" r="2.4" />
+      <circle cx="6.6" cy="12" r="2.4" />
+      <circle cx="17.4" cy="17.6" r="2.4" />
+      <path d="M8.8 10.8l6.4-3.2M8.8 13.2l6.4 3.2" />
+    </svg>
+  );
+}
+
 export function IconPlus(p: P) {
   return (
     <svg {...svgProps(p)}>

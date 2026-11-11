@@ -17,6 +17,10 @@ export function Composer() {
   const addMemo = useApp((s) => s.addMemo);
   const loggedIn = useApp((s) => Boolean(s.auth));
   const lastUser = useApp((s) => s.lastUser);
+  const activeSpace = useApp((s) => s.activeSpace);
+  const groups = useApp((s) => s.groups);
+  const inGroup = activeSpace.startsWith('g:');
+  const groupName = inGroup ? groups[activeSpace.slice(2)]?.name : null;
   const folders = useApp((s) => s.folders);
   const folderList = liveFolders(folders);
   const target = targetId ? folders[targetId] : null;
@@ -100,7 +104,9 @@ export function Composer() {
             className="composer__input"
             value={text}
             rows={1}
-            placeholder={targetName ? `记点什么… 归入「${targetName}」` : '记点什么…'}
+            placeholder={
+              groupName ? `发到「${groupName}」…` : targetName ? `记点什么… 归入「${targetName}」` : '记点什么…'
+            }
             onChange={(e) => {
               setText(e.target.value);
               resize();
@@ -134,7 +140,7 @@ export function Composer() {
           />
 
           <div className="composer__btns">
-            {folderList.length > 0 && (
+            {folderList.length > 0 && !inGroup && (
               <button
                 className="circle-btn circle-btn--ghost"
                 aria-label="选择文件夹"
@@ -172,8 +178,10 @@ export function Composer() {
           <span>
             {targetName
               ? `新记录将归入 ${targetName}`
-              : loggedIn
-                ? '所有设备实时同步'
+              : groupName
+                ? `群内 ${groups[activeSpace.slice(2)]?.members.length ?? 0} 人可见`
+                : loggedIn
+                  ? '所有设备实时同步'
                 : lastUser
                   ? '已退出登录 · 只写在本机'
                   : '仅保存在本机，登录后并入账号'}

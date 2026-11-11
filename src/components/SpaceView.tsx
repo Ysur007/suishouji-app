@@ -20,7 +20,11 @@ export function SpaceView() {
   const [query, setQuery] = useState('');
   const { menu, openMenu, closeMenu } = useMenu();
 
-  const allMemos = useMemo(() => liveMemos(memos), [memos]);
+  const viewBucket = useApp((s) => s.viewBucket);
+  const allMemos = useMemo(
+    () => liveMemos(memos).filter((m) => (m.spaceId ?? viewBucket) === viewBucket),
+    [memos, viewBucket],
+  );
   const folderList = useMemo(() => liveFolders(folders), [folders]);
 
   const filtered = useMemo(() => {

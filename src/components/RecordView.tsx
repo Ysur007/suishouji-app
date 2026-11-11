@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { dayKey, dayLabel, greeting } from '../lib/format';
-import { folderName, liveMemos, memoAuthor, useApp } from '../lib/store';
+import { folderName, isMyMemo, memosInSpace, useApp } from '../lib/store';
 import type { Memo } from '../lib/types';
 import { useUI } from '../lib/ui';
 import { Composer } from './Composer';
 import { MenuHost, useMenu } from './ContextMenu';
-import { IconFolder, IconGear } from './Icons';
+import { IconFolder, IconGear, IconUsers } from './Icons';
 import { MemoBubble } from './MemoBubble';
 import { memoActions } from './memoActions';
 import { SyncBadge } from './Sidebar';
@@ -20,6 +20,10 @@ export function RecordView() {
   const folders = useApp((s) => s.folders);
   const remoteHits = useApp((s) => s.remoteHits);
   const clientId = useApp((s) => s.clientId);
+  const user = useApp((s) => s.user);
+  const activeSpace = useApp((s) => s.activeSpace);
+  const viewBucket = useApp((s) => s.viewBucket);
+  const groups = useApp((s) => s.groups);
   const setTab = useApp((s) => s.setTab);
   const openSheet = useUI((s) => s.open);
 
@@ -27,7 +31,11 @@ export function RecordView() {
   const stick = useRef(true);
   const { menu, openMenu, closeMenu } = useMenu();
 
-  const list = useMemo(() => liveMemos(memos), [memos]);
+  const group = activeSpace.startsWith('g:') ? groups[activeSpace.slice(2)] : null;
+  const list = useMemo(
+    () => memosInSpace(memos, activeSpace, viewBucket),
+    [memos, activeSpace, viewBucket],
+  );
 
   const items = useMemo(() => {
     const out: Item[] = [];
@@ -72,10 +80,10 @@ export function RecordView() {
   return (
     <>
       <Topbar
-        title="随手记"
+        title={group ? group.name : '随手记'}
         sub={
           <>
-            <span>{greeting()}</span>
+            <span>{group ? `${group.members.length} 人共享` : greeting()}</span>
             <span style={{ opacity: 0.4 }}>·</span>
             <span>{list.length} 条记录</span>
             <span style={{ opacity: 0.4 }}>·</span>
@@ -84,9 +92,19 @@ export function RecordView() {
         }
         actions={
           <>
-            <button className="icon-btn" aria-label="文件夹" onClick={() => setTab('folders')}>
-              <IconFolder />
-            </button>
+            {group ? (
+              <button
+                className="icon-btn"
+                aria-label="群信息"
+                onClick={() => openSheet({ kind: 'group', groupId: group.id })}
+              >
+                <IconUsers />
+              </button>
+            ) : (
+              <button className="icon-btn" aria-label="文件夹" onClick={() => setTab('folders')}>
+                <IconFolder />
+              </button>
+            )}
             <button
               className="icon-btn"
               aria-label="设置"
@@ -114,7 +132,8 @@ export function RecordView() {
                     key={item.memo.id}
                     memo={item.memo}
                     index={item.index}
-                    side={memoAuthor(item.memo) === clientId ? 'me' : 'them'}
+                    side={isMyMemo(item.memo, user?.id, clientId) ? 'me' : 'them'}
+                    authorLabel={group && item.memo.ownerId !== user?.id ? item.memo.ownerName : null}
                     fresh={Boolean(remoteHits[item.memo.id])}
                     folderLabel={folderName(folders, item.memo.folderId)}
                     onOpen={(m) => openSheet({ kind: 'editor', memoId: m.id })}

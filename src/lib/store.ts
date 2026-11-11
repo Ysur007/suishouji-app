@@ -3,7 +3,7 @@ import { apiLogout, clearAuth, readAuth, writeAuth, type AuthState, type AuthUse
 import { emitAuthChange, emitOp } from './bus';
 import { debounce, idbDel, idbGet, idbSet } from './idb';
 import { configureClock, nextHLC, observeHLC } from './hlc';
-import type { Folder, GlyphKey, Memo, Op, Peer, SyncState, Tab, Toast, ToneKey } from './types';
+import type { Folder, GlyphKey, Group, Memo, Op, Peer, SyncState, Tab, Toast, ToneKey } from './types';
 
 const uid = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -34,6 +34,7 @@ const LS = {
   client: 'ssj:client',
   name: 'ssj:device',
   tab: 'ssj:tab',
+  space: 'ssj:space',
   last: 'ssj:lastBucket',
   lastUser: 'ssj:lastUser',
 };
@@ -107,6 +108,9 @@ interface AppState {
   platform: string;
   memos: Record<string, Memo>;
   folders: Record<string, Folder>;
+  groups: Record<string, Group>;
+  /** 当前浏览的空间：个人 `u:<id>` 或群 `g:<id>` */
+  activeSpace: string;
   tab: Tab;
   folderFilter: string | null;
   sync: SyncState;
@@ -128,6 +132,9 @@ interface AppState {
   updateFolder: (id: string, patch: Partial<Pick<Folder, 'name' | 'glyph' | 'tone'>>) => void;
   deleteFolder: (id: string) => void;
 
+  setGroups: (list: Group[]) => void;
+  shareToGroup: (memoId: string, groupId: string) => void;
+  setActiveSpace: (space: string) => void;
   setTab: (tab: Tab) => void;
   setFolderFilter: (id: string | null) => void;
   applyOps: (ops: Op[]) => void;
@@ -153,7 +160,14 @@ export async function persistNow(): Promise<void> {
   await writeState();
 }
 
-function makeOp(entity: 'memo' | 'folder', entityId: string, kind: 'put' | 'del', hlc: string, data?: unknown): Op {
+function makeOp(
+  entity: 'memo' | 'folder',
+  entityId: string,
+  kind: 'put' | 'del',
+  hlc: string,
+  spaceId: string,
+  data?: unknown,
+): Op {
   return {
     id: uid(),
     entityId,
@@ -161,6 +175,7 @@ function makeOp(entity: 'memo' | 'folder', entityId: string, kind: 'put' | 'del'
     hlc,
     entity,
     kind,
+    spaceId,
     data: data as Record<string, unknown> | undefined,
   };
 }
@@ -174,6 +189,8 @@ export const useApp = create<AppState>((set, get) => ({
   platform: identity.platform,
   memos: {},
   folders: {},
+  groups: {},
+  activeSpace: 'guest',
   tab: (localStorage.getItem(LS.tab) as Tab) || 'record',
   folderFilter: null,
   viewBucket: 'guest',
@@ -206,10 +223,14 @@ export const useApp = create<AppState>((set, get) => ({
     }
 
     const lastUser = readLastUser();
+    const savedSpace = localStorage.getItem(LS.space);
+    const activeSpace =
+      savedSpace && (savedSpace === bucket || savedSpace.startsWith('g:')) ? savedSpace : bucket;
     set({
       auth,
       user: auth?.user ?? null,
       viewBucket: bucket,
+      activeSpace,
       lastUser: auth?.user ?? (bucket === 'guest' ? null : lastUser),
       memos: snap?.memos ?? {},
       folders: snap?.folders ?? {},
@@ -242,7 +263,9 @@ export const useApp = create<AppState>((set, get) => ({
       auth,
       user: auth.user,
       viewBucket: bucket,
+      activeSpace: bucket,
       lastUser: auth.user,
+      groups: {},
       memos: merged.memos,
       folders: merged.folders,
       folderFilter: null,
@@ -253,8 +276,10 @@ export const useApp = create<AppState>((set, get) => ({
     if (mergeGuest) await idbSet(stateKey('guest'), emptySnapshot());
 
     // 游客期间写的记录：按原 hlc 重放到账号，冲突交给服务端 LWW 判定
-    for (const m of Object.values(guest.memos)) emitOp(makeOp('memo', m.id, 'put', m.hlc, m));
-    for (const f of Object.values(guest.folders)) emitOp(makeOp('folder', f.id, 'put', f.hlc, f));
+    for (const m of Object.values(guest.memos)) {
+      emitOp(makeOp('memo', m.id, 'put', m.hlc, m.spaceId ?? 'guest', m));
+    }
+    for (const f of Object.values(guest.folders)) emitOp(makeOp('folder', f.id, 'put', f.hlc, 'guest', f));
 
     emitAuthChange();
     if (Object.keys(guest.memos).length) {
@@ -279,8 +304,12 @@ export const useApp = create<AppState>((set, get) => ({
       auth: null,
       user: null,
       lastUser: s.auth?.user ?? s.lastUser,
+      activeSpace: s.viewBucket,
+      groups: {},
+      tab: 'record',
       sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
     });
+    localStorage.setItem(LS.space, s.viewBucket);
     emitAuthChange();
     void persistNow();
     get().notify('已退出登录，记录仍保留在本机');
@@ -295,8 +324,12 @@ export const useApp = create<AppState>((set, get) => ({
       auth: null,
       user: null,
       lastUser: s.auth?.user ?? s.lastUser,
+      activeSpace: s.viewBucket,
+      groups: {},
+      tab: 'record',
       sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
     });
+    localStorage.setItem(LS.space, s.viewBucket);
     emitAuthChange();
     void persistNow();
     get().notify('登录已失效，记录仍留在本机', 'error');
@@ -312,22 +345,30 @@ export const useApp = create<AppState>((set, get) => ({
       folderFilter: null,
       remoteHits: {},
       viewBucket: 'guest',
+      activeSpace: 'guest',
       lastUser: null,
+      groups: {},
     });
     await idbSet(stateKey(bucket), emptySnapshot());
     if (bucket !== 'guest') await idbDel(seqKey(bucket));
     localStorage.removeItem(LS.last);
     localStorage.removeItem(LS.lastUser);
+    localStorage.removeItem(LS.space);
     get().notify('本机缓存已清除，云端记录不受影响');
   },
 
   addMemo({ text, images = [], folderId = null }) {
+    const s = get();
     const now = Date.now();
     const id = uid();
     const hlc = nextHLC();
+    const space = s.activeSpace;
     const memo: Memo = {
       id,
-      authorId: get().clientId,
+      authorId: s.clientId,
+      ownerId: s.user?.id ?? `guest:${s.clientId}`,
+      ownerName: s.user?.username ?? '未登录',
+      spaceId: space,
       text: text.trim(),
       images,
       folderId,
@@ -337,7 +378,7 @@ export const useApp = create<AppState>((set, get) => ({
       hlc,
       deleted: false,
     };
-    emitOp(makeOp('memo', id, 'put', hlc, memo));
+    emitOp(makeOp('memo', id, 'put', hlc, space, memo));
     set((s) => ({ memos: { ...s.memos, [id]: memo } }));
     persist();
     return id;
@@ -348,7 +389,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!cur) return;
     const hlc = nextHLC();
     const next: Memo = { ...cur, ...patch, updatedAt: Date.now(), hlc };
-    emitOp(makeOp('memo', id, 'put', hlc, next));
+    emitOp(makeOp('memo', id, 'put', hlc, next.spaceId ?? get().viewBucket, next));
     set((s) => ({ memos: { ...s.memos, [id]: next } }));
     persist();
   },
@@ -357,7 +398,7 @@ export const useApp = create<AppState>((set, get) => ({
     const cur = get().memos[id];
     if (!cur) return;
     const hlc = nextHLC();
-    emitOp(makeOp('memo', id, 'del', hlc));
+    emitOp(makeOp('memo', id, 'del', hlc, cur.spaceId ?? get().viewBucket));
     set((s) => ({ memos: { ...s.memos, [id]: { ...cur, deleted: true, hlc, updatedAt: Date.now() } } }));
     persist();
   },
@@ -382,7 +423,7 @@ export const useApp = create<AppState>((set, get) => ({
       hlc,
       deleted: false,
     };
-    emitOp(makeOp('folder', id, 'put', hlc, folder));
+    emitOp(makeOp('folder', id, 'put', hlc, get().viewBucket, folder));
     set((s) => ({ folders: { ...s.folders, [id]: folder } }));
     persist();
     return id;
@@ -393,7 +434,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!cur) return;
     const hlc = nextHLC();
     const next: Folder = { ...cur, ...patch, updatedAt: Date.now(), hlc };
-    emitOp(makeOp('folder', id, 'put', hlc, next));
+    emitOp(makeOp('folder', id, 'put', hlc, get().viewBucket, next));
     set((s) => ({ folders: { ...s.folders, [id]: next } }));
     persist();
   },
@@ -404,14 +445,14 @@ export const useApp = create<AppState>((set, get) => ({
 
     const now = Date.now();
     const folderHlc = nextHLC();
-    const ops: Op[] = [makeOp('folder', id, 'del', folderHlc)];
+    const ops: Op[] = [makeOp('folder', id, 'del', folderHlc, get().viewBucket)];
 
     const memos = { ...get().memos };
     for (const m of Object.values(memos)) {
       if (m.folderId !== id || m.deleted) continue;
       const hlc = nextHLC();
       const next: Memo = { ...m, folderId: null, updatedAt: now, hlc };
-      ops.push(makeOp('memo', m.id, 'put', hlc, next));
+      ops.push(makeOp('memo', m.id, 'put', hlc, m.spaceId ?? get().viewBucket, next));
       memos[m.id] = next;
     }
 
@@ -422,6 +463,56 @@ export const useApp = create<AppState>((set, get) => ({
       folderFilter: s.folderFilter === id ? null : s.folderFilter,
     }));
     persist();
+  },
+
+  /** 把一条个人记录复制到群里（原记录不动，群里是一份带 sharedFrom 的副本） */
+  shareToGroup(memoId, groupId) {
+    const s = get();
+    const memo = s.memos[memoId];
+    const group = s.groups[groupId];
+    if (!memo || memo.deleted || !group) return;
+    if (!s.user) {
+      s.notify('登录后才能共享到群', 'error');
+      return;
+    }
+    const now = Date.now();
+    const hlc = nextHLC();
+    const id = uid();
+    const copy: Memo = {
+      ...memo,
+      id,
+      spaceId: `g:${groupId}`,
+      folderId: null,
+      pinned: false,
+      createdAt: now,
+      updatedAt: now,
+      hlc,
+      ownerId: s.user.id,
+      ownerName: s.user.username,
+      authorId: s.clientId,
+      sharedFrom: memo.id,
+    };
+    emitOp(makeOp('memo', id, 'put', hlc, copy.spaceId as string, copy));
+    set((st) => ({ memos: { ...st.memos, [id]: copy } }));
+    persist();
+    get().notify(`已共享到「${group.name}」`);
+  },
+
+  setGroups(list) {
+    const groups: Record<string, Group> = {};
+    for (const g of list) groups[g.id] = g;
+    const s = get();
+    const active = s.activeSpace;
+    // 当前停留的群没了（被移出 / 解散 / 自己退出），退回个人空间
+    const fallback =
+      active.startsWith('g:') && !groups[active.slice(2)] ? s.viewBucket : active;
+    set({ groups, activeSpace: fallback });
+    if (fallback !== active) localStorage.setItem(LS.space, fallback);
+  },
+
+  setActiveSpace(space) {
+    localStorage.setItem(LS.space, space);
+    set({ activeSpace: space, folderFilter: null, tab: 'record' });
   },
 
   setTab(tab) {
@@ -456,7 +547,9 @@ export const useApp = create<AppState>((set, get) => ({
         bucket[op.entityId] = { ...cur, deleted: true, hlc: op.hlc } as Rec;
       } else {
         if (!op.data) continue;
-        bucket[op.entityId] = op.data as unknown as Rec;
+        const record = { ...op.data } as Record<string, unknown>;
+        if (!record.spaceId && op.spaceId) record.spaceId = op.spaceId;
+        bucket[op.entityId] = record as unknown as Rec;
         if (op.clientId !== s.clientId) remoteHits[op.entityId] = now;
       }
       changed = true;
@@ -518,7 +611,7 @@ export const useApp = create<AppState>((set, get) => ({
           deleted: false,
         };
         folders[id] = folder;
-        emitOp(makeOp('folder', id, 'put', hlc, folder));
+        emitOp(makeOp('folder', id, 'put', hlc, get().viewBucket, folder));
       } else {
         const memo: Memo = {
           id,
@@ -531,9 +624,12 @@ export const useApp = create<AppState>((set, get) => ({
           updatedAt: now,
           hlc,
           deleted: false,
+          spaceId: get().viewBucket,
+          ownerId: get().user?.id,
+          ownerName: get().user?.username,
         };
         memos[id] = memo;
-        emitOp(makeOp('memo', id, 'put', hlc, memo));
+        emitOp(makeOp('memo', id, 'put', hlc, memo.spaceId as string, memo));
       }
       count += 1;
     }
@@ -571,6 +667,24 @@ export function liveFolders(folders: Record<string, Folder>): Folder[] {
 }
 
 /** 记录的作者设备；老数据没有 authorId 时从 hlc 尾部回退解析 */
+/** 当前空间里的记录：老数据没有 spaceId 时归到所在分区 */
+export function memosInSpace(memos: Record<string, Memo>, space: string, fallback: string): Memo[] {
+  return liveMemos(memos).filter((m) => (m.spaceId ?? fallback) === space);
+}
+
+/**
+ * 气泡在左还是右，只看账号：同一账号在手机和电脑上写的都在右侧。
+ * 游客态没有账号，退回按设备判断；没有 ownerId 的老记录都算自己。
+ */
+export function isMyMemo(memo: Memo, userId: string | null | undefined, clientId: string): boolean {
+  if (memo.ownerId) {
+    return userId ? memo.ownerId === userId : memo.ownerId === `guest:${clientId}`;
+  }
+  // 没有 ownerId 的老记录：个人空间里的必然属于本分区（也就是我），群里的按设备兜底
+  if (!memo.spaceId || memo.spaceId.startsWith('u:')) return true;
+  return memo.authorId ? memo.authorId === clientId : true;
+}
+
 export function memoAuthor(memo: Memo): string {
   return memo.authorId ?? memo.hlc.split('-')[2] ?? '';
 }

@@ -6,6 +6,9 @@
  */
 
 export type EntityKind = 'memo' | 'folder';
+
+/** 记录归属的空间：个人 `u:<userId>` 或群 `g:<groupId>` */
+export type SpaceId = string;
 export type OpKind = 'put' | 'del';
 
 export interface Op {
@@ -19,6 +22,8 @@ export interface Op {
   hlc: string;
   entity: EntityKind;
   kind: OpKind;
+  /** 记录归属空间，缺省视为作者的个人空间 */
+  spaceId?: SpaceId;
   /** put 时为完整记录快照（含 id / hlc） */
   data?: Record<string, unknown>;
 }
@@ -27,14 +32,40 @@ export interface Op {
 export interface StoredOp extends Op {
   seq: number;
   userId: string;
+  spaceId: SpaceId;
 }
 
 export interface StoredRecord {
   id: string;
   entity: EntityKind;
   hlc: string;
+  spaceId: SpaceId;
   deleted?: boolean;
   [key: string]: unknown;
+}
+
+export interface GroupMember {
+  id: string;
+  username: string;
+}
+
+export interface GroupRow {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: string[];
+  createdAt: number;
+  updatedAt: number;
+  deleted?: boolean;
+}
+
+export interface GroupPublic {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: GroupMember[];
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface UserRow {
@@ -64,7 +95,7 @@ export interface Peer {
 }
 
 export interface ClientMessage {
-  type: 'hello' | 'ops' | 'ping';
+  type: 'hello' | 'ops' | 'ping' | 'resync';
   clientId?: string;
   name?: string;
   platform?: string;
@@ -80,5 +111,6 @@ export type ServerMessage =
   | { type: 'reset'; seq: number; records: StoredRecord[] }
   | { type: 'ack'; seq: number; ids: string[] }
   | { type: 'presence'; peers: Peer[] }
+  | { type: 'groups'; groups: GroupPublic[] }
   | { type: 'unauthorized'; reason: string }
   | { type: 'pong' };

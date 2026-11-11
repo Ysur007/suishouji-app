@@ -16,7 +16,11 @@ export function TimelineView() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(false);
 
-  const list = useMemo(() => liveMemos(memos), [memos]);
+  const viewBucket = useApp((s) => s.viewBucket);
+  const list = useMemo(
+    () => liveMemos(memos).filter((m) => (m.spaceId ?? viewBucket) === viewBucket),
+    [memos, viewBucket],
+  );
   const timeline = useMemo(() => buildTimeline(list, clientId), [list, clientId]);
   const todayCount = useMemo(() => {
     const today = new Date();

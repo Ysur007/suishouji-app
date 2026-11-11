@@ -1,15 +1,25 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Op, PublicUser, StoredOp, StoredRecord, TokenRow, UserRow } from './types.js';
+import type {
+  GroupPublic,
+  GroupRow,
+  Op,
+  PublicUser,
+  StoredOp,
+  StoredRecord,
+  TokenRow,
+  UserRow,
+} from './types.js';
 
 interface DB {
-  v: 2;
+  v: 3;
   seq: number;
   minSeq: number;
   users: Record<string, UserRow>;
   tokens: Record<string, TokenRow>;
-  /** 键：`${userId}|${entity}:${entityId}` */
+  groups: Record<string, GroupRow>;
+  /** 键：`${spaceId}|${entity}:${entityId}`，spaceId 为 `u:<userId>` 或 `g:<groupId>` */
   records: Record<string, StoredRecord>;
   ops: StoredOp[];
 }
@@ -18,8 +28,10 @@ const MAX_OPS = 8000;
 const TRIM_TO = 4000;
 const USERNAME_RE = /^[a-zA-Z0-9_\u4e00-\u9fa5-]{2,24}$/;
 const MIN_PASSWORD = 6;
+const MAX_MEMBERS = 32;
 
 export type AuthResult = { ok: true; token: string; user: PublicUser } | { ok: false; error: string; code: number };
+export type GroupResult = { ok: true; group: GroupPublic } | { ok: false; error: string; code: number };
 
 function hashPassword(password: string, salt: string): string {
   return crypto.scryptSync(password, salt, 64).toString('hex');
@@ -32,13 +44,14 @@ function safeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-const recordKey = (userId: string, entity: string, entityId: string) => `${userId}|${entity}:${entityId}`;
+const recordKey = (spaceId: string, entity: string, entityId: string) => `${spaceId}|${entity}:${entityId}`;
 
 /**
- * 「操作日志 + 快照 + 账号」的单文件存储。
+ * 「操作日志 + 快照 + 账号 + 群组」的单文件存储。
  *
- * 分区规则：records 用 `${userId}|${entity}:${entityId}` 做键，ops 行内带 userId。
- * 任何查询都必须显式传 userId —— 这是不同账号之间唯一的隔离边界。
+ * 分区规则：每条记录归某个空间，个人空间 `u:<userId>` 只有本人可读写，
+ * 群空间 `g:<groupId>` 由 members 共享。任何读取路径都必须先算出
+ * 当前用户可见的空间集合，再做过滤——这是账号之间、群与群之间的唯一隔离边界。
  */
 export class Store {
   private db: DB;
@@ -52,31 +65,71 @@ export class Store {
     this.file = path.join(dir, 'db.json');
     this.db = this.load();
     for (const op of this.db.ops) this.seen.add(op.id);
+    // 旧版本数据刚迁移完，尽早在磁盘上落成新结构
+    if (this.dirty) this.scheduleSave();
   }
 
   private load(): DB {
     try {
       const raw = fs.readFileSync(this.file, 'utf8');
       const parsed = JSON.parse(raw) as { v?: number; [key: string]: unknown };
-      if (parsed && parsed.v === 2 && parsed.records && parsed.users) {
+      if (!parsed) throw new Error('empty');
+
+      if (parsed.v === 3 && parsed.records && parsed.users) {
         const db = parsed as unknown as DB;
         return {
-          v: 2,
+          v: 3,
           seq: db.seq ?? 0,
           minSeq: db.minSeq ?? db.seq ?? 0,
           users: db.users,
           tokens: db.tokens ?? {},
+          groups: db.groups ?? {},
           records: db.records,
           ops: db.ops ?? [],
         };
       }
-      if (parsed && parsed.v === 1) {
-        console.warn('[store] 检测到 v1 数据（无账号概念），已忽略旧记录并升级到 v2');
+
+      // v2 → v3：记录键补上个人空间前缀
+      if (parsed.v === 2 && parsed.records && parsed.users) {
+        const old = parsed as unknown as {
+          seq: number;
+          minSeq?: number;
+          users: Record<string, UserRow>;
+          tokens?: Record<string, TokenRow>;
+          records: Record<string, StoredRecord>;
+          ops?: StoredOp[];
+        };
+        const records: Record<string, StoredRecord> = {};
+        for (const [key, value] of Object.entries(old.records)) {
+          const [userId, rest] = key.split('|');
+          if (!rest) continue;
+          records[`u:${userId}|${rest}`] = { ...value, spaceId: `u:${userId}` };
+        }
+        const ops = (old.ops ?? []).map((op) => ({
+          ...op,
+          spaceId: op.spaceId ?? `u:${op.userId}`,
+        }));
+        console.log(`[store] v2 → v3：${Object.keys(records).length} 条记录迁入个人空间`);
+        this.dirty = true;
+        return {
+          v: 3,
+          seq: old.seq ?? 0,
+          minSeq: old.minSeq ?? 0,
+          users: old.users,
+          tokens: old.tokens ?? {},
+          groups: {},
+          records,
+          ops,
+        };
+      }
+
+      if (parsed.v === 1) {
+        console.warn('[store] 检测到 v1 数据（无账号概念），已忽略旧记录并升级到 v3');
       }
     } catch {
       /* 首次启动 */
     }
-    return { v: 2, seq: 0, minSeq: 0, users: {}, tokens: {}, records: {}, ops: [] };
+    return { v: 3, seq: 0, minSeq: 0, users: {}, tokens: {}, groups: {}, records: {}, ops: [] };
   }
 
   get seq(): number {
@@ -93,6 +146,10 @@ export class Store {
 
   get userCount(): number {
     return Object.keys(this.db.users).length;
+  }
+
+  get groupCount(): number {
+    return Object.values(this.db.groups).filter((g) => !g.deleted).length;
   }
 
   /* ----------------------------- 账号 ----------------------------- */
@@ -156,13 +213,173 @@ export class Store {
     return user ? { id: user.id, username: user.username } : null;
   }
 
+  userByName(username: string): UserRow | null {
+    const lower = username.trim().toLowerCase();
+    return Object.values(this.db.users).find((u) => u.username.toLowerCase() === lower) ?? null;
+  }
+
+  /* ----------------------------- 群组 ----------------------------- */
+
+  private publicGroup(row: GroupRow): GroupPublic {
+    return {
+      id: row.id,
+      name: row.name,
+      ownerId: row.ownerId,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      members: row.members
+        .map((id) => {
+          const user = this.db.users[id];
+          return user ? { id: user.id, username: user.username } : null;
+        })
+        .filter((m): m is { id: string; username: string } => Boolean(m)),
+    };
+  }
+
+  groupsOf(userId: string): GroupPublic[] {
+    return Object.values(this.db.groups)
+      .filter((g) => !g.deleted && g.members.includes(userId))
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map((g) => this.publicGroup(g));
+  }
+
+  groupById(groupId: string): GroupPublic | null {
+    const row = this.db.groups[groupId];
+    return row && !row.deleted ? this.publicGroup(row) : null;
+  }
+
+  createGroup(ownerId: string, nameRaw: string): GroupResult {
+    const name = nameRaw.trim().slice(0, 24) || '未命名群';
+    const now = Date.now();
+    const row: GroupRow = {
+      id: `g_${crypto.randomBytes(8).toString('hex')}`,
+      name,
+      ownerId,
+      members: [ownerId],
+      createdAt: now,
+      updatedAt: now,
+      deleted: false,
+    };
+    this.db.groups[row.id] = row;
+    this.dirty = true;
+    this.scheduleSave();
+    return { ok: true, group: this.publicGroup(row) };
+  }
+
+  /** 按用户名拉人进群；已在群里的忽略，有查无此人的就整批拒绝 */
+  invite(groupId: string, actorId: string, usernames: string[]): GroupResult {
+    const row = this.db.groups[groupId];
+    if (!row || row.deleted) return { ok: false, error: '群不存在', code: 404 };
+    if (!row.members.includes(actorId)) return { ok: false, error: '你不在这个群里', code: 403 };
+
+    const targets = usernames.map((u) => u.trim()).filter(Boolean);
+    if (!targets.length) return { ok: false, error: '没有要邀请的人', code: 400 };
+
+    const found: UserRow[] = [];
+    const missing: string[] = [];
+    for (const name of targets) {
+      const user = this.userByName(name);
+      if (!user) missing.push(name);
+      else found.push(user);
+    }
+    if (missing.length) return { ok: false, error: `找不到用户：${missing.join('、')}`, code: 404 };
+
+    const fresh = found.filter((u) => !row.members.includes(u.id));
+    if (row.members.length + fresh.length > MAX_MEMBERS) {
+      return { ok: false, error: `一个群最多 ${MAX_MEMBERS} 人`, code: 400 };
+    }
+    if (!fresh.length) return { ok: true, group: this.publicGroup(row) };
+
+    row.members.push(...fresh.map((u) => u.id));
+    row.updatedAt = Date.now();
+    this.dirty = true;
+    this.scheduleSave();
+    return { ok: true, group: this.publicGroup(row) };
+  }
+
+  renameGroup(groupId: string, actorId: string, nameRaw: string): GroupResult {
+    const row = this.db.groups[groupId];
+    if (!row || row.deleted) return { ok: false, error: '群不存在', code: 404 };
+    if (!row.members.includes(actorId)) return { ok: false, error: '你不在这个群里', code: 403 };
+    const name = nameRaw.trim().slice(0, 24);
+    if (!name) return { ok: false, error: '群名不能为空', code: 400 };
+    row.name = name;
+    row.updatedAt = Date.now();
+    this.dirty = true;
+    this.scheduleSave();
+    return { ok: true, group: this.publicGroup(row) };
+  }
+
+  removeMember(groupId: string, actorId: string, targetId: string): GroupResult {
+    const row = this.db.groups[groupId];
+    if (!row || row.deleted) return { ok: false, error: '群不存在', code: 404 };
+    if (row.ownerId !== actorId) return { ok: false, error: '只有群主可以移除成员', code: 403 };
+    if (targetId === row.ownerId) return { ok: false, error: '群主不能移除自己，请直接退出', code: 400 };
+    row.members = row.members.filter((id) => id !== targetId);
+    row.updatedAt = Date.now();
+    this.dirty = true;
+    this.scheduleSave();
+    return { ok: true, group: this.publicGroup(row) };
+  }
+
+  /** 退群；群主退出时把群主转给下一个成员，最后一个人退出则解散 */
+  leaveGroup(
+    groupId: string,
+    userId: string,
+  ): { ok: true; group: GroupPublic | null } | { ok: false; error: string; code: number } {
+    const row = this.db.groups[groupId];
+    if (!row || row.deleted) return { ok: false, error: '群不存在', code: 404 };
+    if (!row.members.includes(userId)) return { ok: false, error: '你不在这个群里', code: 403 };
+
+    row.members = row.members.filter((id) => id !== userId);
+    if (!row.members.length) {
+      row.deleted = true;
+      row.updatedAt = Date.now();
+      this.dirty = true;
+      this.scheduleSave();
+      return { ok: true, group: null };
+    }
+    if (row.ownerId === userId) row.ownerId = row.members[0];
+    row.updatedAt = Date.now();
+    this.dirty = true;
+    this.scheduleSave();
+    return { ok: true, group: this.publicGroup(row) };
+  }
+
+  /* ----------------------------- 空间 ----------------------------- */
+
+  spacesOf(userId: string): Set<string> {
+    const set = new Set<string>([`u:${userId}`]);
+    for (const g of Object.values(this.db.groups)) {
+      if (!g.deleted && g.members.includes(userId)) set.add(`g:${g.id}`);
+    }
+    return set;
+  }
+
+  canAccess(userId: string, spaceId: string): boolean {
+    if (spaceId === `u:${userId}`) return true;
+    if (!spaceId.startsWith('g:')) return false;
+    const row = this.db.groups[spaceId.slice(2)];
+    return Boolean(row && !row.deleted && row.members.includes(userId));
+  }
+
+  /** 某个空间的所有成员 id，用于广播 */
+  membersOfSpace(spaceId: string): string[] {
+    if (spaceId.startsWith('u:')) return [spaceId.slice(2)];
+    if (!spaceId.startsWith('g:')) return [];
+    const row = this.db.groups[spaceId.slice(2)];
+    return row && !row.deleted ? [...row.members] : [];
+  }
+
   /* ----------------------------- 数据 ----------------------------- */
 
-  /** 应用一批 Op（限定在某用户分区内） */
   applyMany(ops: Op[], userId: string): StoredOp[] {
+    const spaces = this.spacesOf(userId);
     const accepted: StoredOp[] = [];
     for (const op of ops) {
-      const stored = this.apply(op, userId);
+      const spaceId = op.spaceId || `u:${userId}`;
+      if (!spaces.has(spaceId)) continue; // 无权写入的空间直接丢弃
+      const stored = this.apply({ ...op, spaceId }, userId);
       if (stored) accepted.push(stored);
     }
     if (accepted.length) this.scheduleSave();
@@ -171,11 +388,12 @@ export class Store {
 
   private apply(op: Op, userId: string): StoredOp | null {
     if (!op?.id || !op?.entityId || !op?.hlc || !op?.entity) return null;
+    const spaceId = op.spaceId || `u:${userId}`;
     if (this.seen.has(op.id)) {
       return this.db.ops.find((o) => o.id === op.id) ?? null;
     }
 
-    const key = recordKey(userId, op.entity, op.entityId);
+    const key = recordKey(spaceId, op.entity, op.entityId);
     const existing = this.db.records[key];
     if (existing && existing.hlc >= op.hlc) {
       this.seen.add(op.id);
@@ -184,7 +402,7 @@ export class Store {
 
     this.seen.add(op.id);
     this.db.seq += 1;
-    const stored: StoredOp = { ...op, seq: this.db.seq, userId };
+    const stored: StoredOp = { ...op, spaceId, seq: this.db.seq, userId };
     this.db.ops.push(stored);
     this.dirty = true;
 
@@ -192,6 +410,7 @@ export class Store {
       this.db.records[key] = {
         id: op.entityId,
         entity: op.entity,
+        spaceId,
         hlc: op.hlc,
         deleted: true,
         updatedAt: Date.now(),
@@ -201,6 +420,7 @@ export class Store {
         ...(op.data ?? {}),
         id: op.entityId,
         entity: op.entity,
+        spaceId,
         hlc: op.hlc,
         deleted: false,
       };
@@ -215,23 +435,24 @@ export class Store {
     return stored;
   }
 
-  /** 只返回该用户自己的增量；since 过旧时返回 null 由调用方改发快照 */
+  /** 只返回该用户可见空间的增量；since 过旧时返回 null 由调用方改发快照 */
   since(seq: number, userId: string): StoredOp[] | null {
     if (seq < this.db.minSeq) return null;
-    return this.db.ops.filter((o) => o.userId === userId && o.seq > seq);
+    const spaces = this.spacesOf(userId);
+    return this.db.ops.filter((o) => o.seq > seq && spaces.has(o.spaceId));
   }
 
   allRecords(userId: string): StoredRecord[] {
-    return Object.entries(this.db.records)
-      .filter(([key]) => key.startsWith(`${userId}|`))
-      .map(([, value]) => value);
+    const spaces = this.spacesOf(userId);
+    return Object.values(this.db.records).filter((r) => spaces.has(r.spaceId));
   }
 
   exportAll(userId: string, username: string) {
     return {
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       account: username,
+      groups: this.groupsOf(userId),
       records: this.allRecords(userId),
     };
   }

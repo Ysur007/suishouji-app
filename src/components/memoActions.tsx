@@ -2,10 +2,22 @@ import type { Memo } from '../lib/types';
 import { useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
 import type { MenuAction } from './ContextMenu';
-import { IconCopy, IconEdit, IconFolder, IconPin, IconTrash } from './Icons';
+import { IconCopy, IconEdit, IconFolder, IconPin, IconShare, IconTrash } from './Icons';
 
 export function memoActions(memo: Memo): MenuAction[] {
   const open = useUI.getState().open;
+  const state = useApp.getState();
+  const groups = Object.values(state.groups);
+  const inPersonal = (memo.spaceId ?? state.viewBucket) === state.viewBucket;
+  const shareActions: MenuAction[] =
+    inPersonal && groups.length
+      ? groups.slice(0, 4).map((g) => ({
+          key: `share-${g.id}`,
+          label: `共享到「${g.name}」`,
+          icon: <IconShare />,
+          onClick: () => state.shareToGroup(memo.id, g.id),
+        }))
+      : [];
 
   return [
     {
@@ -42,6 +54,7 @@ export function memoActions(memo: Memo): MenuAction[] {
       icon: <IconFolder />,
       onClick: () => open({ kind: 'editor', memoId: memo.id }),
     },
+    ...shareActions,
     {
       key: 'delete',
       label: '删除',

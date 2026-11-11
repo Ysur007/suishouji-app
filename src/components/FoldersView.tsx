@@ -19,7 +19,11 @@ export function FoldersView() {
   const [menu, setMenu] = useState<{ x: number; y: number; folderId: string } | null>(null);
 
   const list = useMemo(() => liveFolders(folders), [folders]);
-  const memoList = useMemo(() => liveMemos(memos), [memos]);
+  const viewBucket = useApp((s) => s.viewBucket);
+  const memoList = useMemo(
+    () => liveMemos(memos).filter((m) => (m.spaceId ?? viewBucket) === viewBucket),
+    [memos, viewBucket],
+  );
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
