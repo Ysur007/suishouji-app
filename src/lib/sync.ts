@@ -1,4 +1,5 @@
 import { onAuthChange, onOp } from './bus';
+import { wsUrl } from './endpoint';
 import { debounce, idbGet, idbSet } from './idb';
 import { bucketOf, pendingKey, persistNow, seqKey, useApp } from './store';
 import type { Group, Op, Peer } from './types';
@@ -188,8 +189,7 @@ class SyncClient {
     const { clientId, deviceName, platform, setSync } = useApp.getState();
     setSync({ status: 'connecting' });
 
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    const ws = new WebSocket(wsUrl());
     this.ws = ws;
 
     ws.onopen = () => {

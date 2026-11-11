@@ -4,6 +4,8 @@ import { liveFolders, liveMemos, useApp } from '../lib/store';
 import { IconDownload, IconUpload } from './Icons';
 import { SyncBadge } from './Sidebar';
 import { navigate } from '../lib/router';
+import { readAuth } from '../lib/auth';
+import { apiUrl } from '../lib/endpoint';
 
 export function SettingsBody({ onClose }: { onClose: () => void }) {
   const deviceName = useApp((s) => s.deviceName);
@@ -20,6 +22,25 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
 
   const memoCount = liveMemos(memos).length;
   const folderCount = liveFolders(folders).length;
+
+  const exportServer = async () => {
+    const token = readAuth()?.token;
+    if (!token) {
+      useApp.getState().notify('登录后才能导出服务端数据', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(apiUrl('/api/export'), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('导出失败');
+      const data = await res.json();
+      downloadJson(`suishouji-server-${new Date().toISOString().slice(0, 10)}.json`, data);
+      useApp.getState().notify('已导出服务端完整数据');
+    } catch (err) {
+      useApp.getState().notify((err as Error).message, 'error');
+    }
+  };
 
   const exportLocal = () => {
     const records = [...Object.values(memos), ...Object.values(folders)].map((r) => ({
@@ -156,9 +177,10 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
               <IconUpload width={14} height={14} />
               从备份导入
             </button>
-            <a className="option" href="/api/export" download style={{ textDecoration: 'none' }}>
+            <button className="option" onClick={() => void exportServer()}>
+              <IconDownload width={14} height={14} />
               服务端完整导出
-            </a>
+            </button>
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--ink-4)', lineHeight: 1.6, marginTop: 8 }}>
             数据保存在服务器的一个 JSON 文件里（data/db.json），随时可以整包拷走。

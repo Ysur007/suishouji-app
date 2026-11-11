@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { navigate } from '../lib/router';
+import { apiBase, defaultApiBase, setApiBase } from '../lib/endpoint';
 import { liveMemos, useApp } from '../lib/store';
 import { IconChevron, IconDevice, IconUser, IconUsers } from '../components/Icons';
 import { SyncBadge } from '../components/Sidebar';
@@ -19,6 +20,8 @@ export function AccountPage() {
 
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
+  const [endpoint, setEndpoint] = useState(() => apiBase() || defaultApiBase());
+  const shellMode = Boolean(defaultApiBase()) || Boolean(apiBase());
 
   const list = useMemo(
     () => Object.values(groups).sort((a, b) => a.createdAt - b.createdAt),
@@ -162,6 +165,37 @@ export function AccountPage() {
             {auth ? <span className="page__hint">退出登录后可清除本机缓存</span> : null}
           </div>
         </section>
+
+        {shellMode ? (
+          <section className="card">
+            <div className="card__label">服务器</div>
+            <p className="card__note">
+              移动端页面打包在应用内，接口需要一个可访问的服务器地址。填你自己的部署地址，保存后会重新加载。
+            </p>
+            <div className="field" style={{ marginTop: 12 }}>
+              <input
+                className="field__input"
+                value={endpoint}
+                placeholder="https://your-server.example.com"
+                onChange={(e) => setEndpoint(e.target.value)}
+              />
+            </div>
+            <div className="card__actions">
+              <button className="text-link" onClick={() => setApiBase(endpoint)}>
+                保存并重新加载
+              </button>
+              <button
+                className="text-link"
+                onClick={() => {
+                  localStorage.removeItem('ssj:endpoint');
+                  location.reload();
+                }}
+              >
+                恢复构建时的地址
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <p className="page__fineprint">
           登录凭证保存在本机浏览器里；记录在服务端是可读的，没有做端到端加密。公网部署请使用 HTTPS。

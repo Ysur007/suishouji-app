@@ -6,8 +6,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Store } from './store.js';
 import type { ClientMessage, Op, Peer, ServerMessage } from './types.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+// 三种运行形态：tsx 直跑（ESM）、Docker/Node（ESM）、Electron（esbuild 打成 CJS）
+const HERE =
+  typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+const ROOT = process.env.APP_ROOT ? path.resolve(process.env.APP_ROOT) : path.resolve(HERE, '..');
 const DIST = path.join(ROOT, 'dist');
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA_DIR = path.resolve(ROOT, process.env.DATA_DIR ?? 'data');
@@ -109,6 +111,16 @@ function serveStatic(res: ServerResponse, pathname: string) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // 移动端壳从 https://localhost 调接口属于跨域；这里放开 origin，鉴权仍靠 Bearer token
+  res.setHeader('access-control-allow-origin', '*');
+  res.setHeader('access-control-allow-headers', 'content-type,authorization');
+  res.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
+  res.setHeader('access-control-max-age', '86400');
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204).end();
+    return;
+  }
+
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
   const { pathname } = url;
 

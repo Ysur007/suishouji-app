@@ -318,6 +318,29 @@ HTTPS 下前端会自动把 `ws://` 换成 `wss://`，无需改代码。
 
 ---
 
+## 下载与安装
+
+到 [Releases](https://github.com/Ysur007/suishouji-app/releases) 下载对应平台的包：
+
+| 平台 | 文件 | 怎么用 |
+| --- | --- | --- |
+| Windows x64 | `suishouji-1.1.0-win-x64.zip` | 解压到任意目录，双击 `Suishouji.exe`。**未签名**，首次运行 SmartScreen 会拦：更多信息 → 仍要运行 |
+| Android | `suishouji-1.1.0-android.apk` | 传到手机安装，需要允许「安装未知来源应用」。debug 签名，适合自用 |
+| Web | `suishouji-1.1.0-web.zip` | 解压到任意静态服务器；或 `npm ci && npm run build && npm start` |
+
+### 三端各自是什么
+
+- **Web**：就是这套前端 + Node 服务端，数据在服务端。
+- **Windows（Electron）**：把前端和服务端**一起**打进 exe，启动时在 `127.0.0.1:8787` 起本地服务，窗口加载它。
+  因此桌面版**开箱即用、不依赖任何远程服务器**，数据在 `%APPDATA%\Suishouji\data\db.json`。
+  代价是它默认是个独立实例：想让桌面版连到线上那份数据，用 `SSJ_REMOTE=https://你的地址` 启动，
+  它会跳过本地服务直接当客户端。
+- **Android（Capacitor）**：页面打包在 app 内，接口指向构建时注入的服务器地址。
+  换服务器不用重新打包——在「账号 → 服务器」里填地址，保存后自动重载。
+
+> 三端是同一份前端代码，只有"接口地址"和"数据放在哪"不同。
+
+
 ## Docker 部署
 
 ```bash

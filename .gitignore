@@ -9,3 +9,10 @@ data/
 .vscode/
 .idea/
 .workbuddy/
+
+# 构建产物
+dist-server/
+release/
+build/
+android/
+ios/

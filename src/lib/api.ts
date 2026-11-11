@@ -1,10 +1,11 @@
 import { readAuth } from './auth';
+import { apiUrl } from './endpoint';
 import type { Group } from './types';
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const auth = readAuth();
   if (!auth) throw new Error('请先登录');
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
       'content-type': 'application/json',

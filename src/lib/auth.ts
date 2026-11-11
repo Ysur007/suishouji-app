@@ -1,4 +1,5 @@
 /** 账号相关的本地状态与 HTTP 调用。token 存在 localStorage，只用于本机。 */
+import { apiUrl } from './endpoint';
 
 export interface AuthUser {
   id: string;
@@ -33,7 +34,7 @@ export function clearAuth() {
 }
 
 async function post(path: string, body: unknown, token?: string): Promise<AuthState> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
