@@ -9,12 +9,16 @@ import { SpaceView } from './components/SpaceView';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
 import { sync } from './lib/sync';
+import { useRoute } from './lib/router';
+import { LoginPage } from './pages/LoginPage';
+import { AccountPage } from './pages/AccountPage';
 import { persistNow, useApp } from './lib/store';
 import type { Tab } from './lib/types';
 
 const ORDER: Record<Tab, number> = { record: 0, timeline: 1, space: 2, folders: 3 };
 
 export default function App() {
+  const route = useRoute();
   const tab = useApp((s) => s.tab);
   const hydrate = useApp((s) => s.hydrate);
   const [dir, setDir] = useState(1);
@@ -73,6 +77,9 @@ export default function App() {
       window.removeEventListener('pagehide', flush);
     };
   }, []);
+
+  if (route === '/login') return <LoginPage />;
+  if (route === '/account') return <AccountPage />;
 
   return (
     <div className="app">

@@ -81,6 +81,7 @@ export function RecordView() {
     <>
       <Topbar
         title={group ? group.name : '随手记'}
+        onTitleClick={() => openSheet({ kind: 'spaces' })}
         sub={
           <>
             <span>{group ? `${group.members.length} 人共享` : greeting()}</span>

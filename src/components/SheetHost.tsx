@@ -4,8 +4,8 @@ import { Lightbox, SheetFrame } from './Sheet';
 import { MemoEditorBody } from './MemoEditor';
 import { NewFolderBody, RenameFolderBody } from './NewFolderSheet';
 import { SettingsBody } from './SettingsSheet';
-import { AuthBody } from './AuthSheet';
 import { GroupBody, NewGroupBody } from './GroupSheet';
+import { SpacesBody } from './SpacesSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -16,9 +16,7 @@ export function SheetHost() {
       ? `editor:${sheet.memoId}`
       : sheet.kind === 'rename-folder'
         ? `rename:${sheet.folderId}`
-        : sheet.kind === 'auth'
-          ? `auth:${sheet.mode}`
-          : sheet.kind === 'group'
+        : sheet.kind === 'group'
             ? `group:${sheet.groupId}`
             : sheet.kind
     : 'none';
@@ -34,9 +32,9 @@ export function SheetHost() {
               <RenameFolderBody folderId={sheet.folderId} onClose={close} />
             )}
             {sheet.kind === 'settings' && <SettingsBody onClose={close} />}
-            {sheet.kind === 'auth' && <AuthBody mode={sheet.mode} onClose={close} />}
             {sheet.kind === 'new-group' && <NewGroupBody onClose={close} />}
             {sheet.kind === 'group' && <GroupBody groupId={sheet.groupId} onClose={close} />}
+            {sheet.kind === 'spaces' && <SpacesBody onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

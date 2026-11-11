@@ -2357,3 +2357,335 @@ textarea.field__input {
   color: var(--ink-3);
   padding: 2px 2px 0;
 }
+
+/* 顶栏标题作为空间切换入口 */
+.topbar__title--btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border-radius: 10px;
+  margin-left: -6px;
+  padding: 2px 6px 2px 6px;
+  transition: background 0.16s ease;
+}
+
+.topbar__title--btn:hover {
+  background: rgba(10, 10, 10, 0.045);
+}
+
+.topbar__title-chev {
+  opacity: 0.35;
+  flex: none;
+}
+
+/* 空间列表 */
+.space-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.space-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  text-align: left;
+  transition: background 0.16s ease;
+}
+
+.space-item:hover {
+  background: rgba(10, 10, 10, 0.045);
+}
+
+.space-item[data-active='true'] {
+  background: var(--surface-3);
+  font-weight: 550;
+}
+
+.space-item__icon {
+  flex: none;
+  width: 22px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+
+.space-item__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-item__count {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.space-item--add {
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ *
+ * 独立路由页（/login、/account）
+ * ------------------------------------------------------------------ */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 20px 64px;
+  background: var(--canvas);
+}
+
+.page__card {
+  width: 100%;
+  max-width: 430px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 28px 26px 22px;
+  box-shadow: var(--shadow-sm);
+}
+
+.page__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.page__title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-bottom: 8px;
+}
+
+.page__desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  margin-bottom: 20px;
+}
+
+.btn--block {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.page__foot {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.page__hint {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.text-link {
+  align-self: flex-start;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(10, 10, 10, 0.25);
+  transition: color 0.16s ease, text-decoration-color 0.16s ease;
+}
+
+.text-link:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
+}
+
+.text-link[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.page--account {
+  align-items: stretch;
+  padding-top: 28px;
+}
+
+.page__bar {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto 16px;
+}
+
+.page__body {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 20px 20px 18px;
+  box-shadow: var(--shadow-xs);
+}
+
+.card__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+  margin-bottom: 14px;
+}
+
+.card__note {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.card__empty {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.account-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-head__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  flex: none;
+}
+
+.account-head__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-head__name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.account-head__sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+.kv {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.kv__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.kv__k {
+  color: var(--ink-4);
+}
+
+.group-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 2px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.group-row:first-child {
+  border-top: 0;
+}
+
+.group-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.group-row__meta {
+  font-size: 11.5px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.page__fineprint {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-4);
+  padding: 2px 6px 0;
+}
+
+/* 表单在独立页面里的节奏 */
+.page__card .field {
+  margin-bottom: 14px;
+}
+
+.page__card .auth-error {
+  margin-bottom: 12px;
+}
+
+.page__card .auth-tabs {
+  margin: 4px 0 18px;
+}
+
+.page__card .btn--block {
+  margin-top: 6px;
+}

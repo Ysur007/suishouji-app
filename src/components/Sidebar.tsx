@@ -7,11 +7,11 @@ import {
   IconRecord,
   IconSpace,
   IconTimeline,
-  IconUser,
   IconUsers,
 } from './Icons';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
+import { navigate } from '../lib/router';
 
 const PEER_COLORS = ['#0A0A0A', '#333333', '#555555', '#777777'];
 
@@ -69,7 +69,6 @@ export function Sidebar() {
   const sync = useApp((s) => s.sync);
   const user = useApp((s) => s.user);
   const lastUser = useApp((s) => s.lastUser);
-  const signOut = useApp((s) => s.signOut);
   const groups = useApp((s) => s.groups);
   const activeSpace = useApp((s) => s.activeSpace);
   const viewBucket = useApp((s) => s.viewBucket);
@@ -109,9 +108,9 @@ export function Sidebar() {
           <button
             key={item.key}
             className="nav__item"
-            data-active={tab === item.key}
+            data-active={tab === item.key && activeSpace === viewBucket}
             onClick={() => {
-              if (item.key !== 'record') setActiveSpace(viewBucket);
+              setActiveSpace(viewBucket);
               setTab(item.key);
             }}
           >
@@ -124,15 +123,6 @@ export function Sidebar() {
 
       <nav className="nav">
         <div className="nav__label">共享</div>
-        <button
-          className="nav__item"
-          data-active={activeSpace === viewBucket}
-          onClick={() => setActiveSpace(viewBucket)}
-        >
-          <IconUser />
-          <span>我的记录</span>
-          <span className="nav__count">{memoCount}</span>
-        </button>
         {groupList.map((g) => (
           <button
             key={g.id}
@@ -217,12 +207,9 @@ export function Sidebar() {
             </span>
             <button
               className="account-link"
-              onClick={() => {
-                if (user) void signOut();
-                else openSheet({ kind: 'auth', mode: 'login' });
-              }}
+              onClick={() => navigate(user ? '/account' : '/login')}
             >
-              {user ? '退出' : '登录'}
+              {user ? '管理' : '登录'}
             </button>
           </div>
           <motion.div

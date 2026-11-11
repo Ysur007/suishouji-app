@@ -41,6 +41,14 @@ export function IconFolder(p: P) {
   );
 }
 
+export function IconChevron(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <path d="M7.5 10.2l4.5 4.4 4.5-4.4" />
+    </svg>
+  );
+}
+
 export function IconUser(p: P) {
   return (
     <svg {...svgProps(p)}>

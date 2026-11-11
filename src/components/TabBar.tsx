@@ -5,6 +5,8 @@ import { useApp } from '../lib/store';
 export function TabBar() {
   const tab = useApp((s) => s.tab);
   const setTab = useApp((s) => s.setTab);
+  const setActiveSpace = useApp((s) => s.setActiveSpace);
+  const viewBucket = useApp((s) => s.viewBucket);
   const active = tab === 'folders' ? 'space' : tab;
 
   const tabs = [
@@ -21,7 +23,10 @@ export function TabBar() {
             key={t.key}
             className="tabbar__item"
             data-active={active === t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => {
+              if (t.key !== 'record') setActiveSpace(viewBucket);
+              setTab(t.key);
+            }}
           >
             {active === t.key && (
               <motion.span
