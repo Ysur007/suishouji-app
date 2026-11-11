@@ -25,15 +25,23 @@ class SyncClient {
   private flushTimer: number | null = null;
   private started = false;
   private bucket = 'guest';
+  /** 已退出但仍停留在某个账号分区时，先攒在本机，登录同一账号再补传 */
+  private offlineQueue = new Map<string, Op[]>();
+  private offlineTimer: number | null = null;
 
   start() {
     if (this.started) return;
     this.started = true;
 
-    // 未登录不产生任何云端写入
+    // 未登录不产生任何云端写入；但如果还停在上一个账号的分区里，
+    // 这些写入要攒到该分区的待发队列，下次登录同一账号补传
     onOp((op) => {
-      if (!useApp.getState().auth) return;
-      this.enqueue(op);
+      const st = useApp.getState();
+      if (st.auth) {
+        this.enqueue(op);
+        return;
+      }
+      if (st.viewBucket.startsWith('u:')) this.queueForBucket(st.viewBucket, op);
     });
     onAuthChange(() => {
       void this.restart();
@@ -45,7 +53,13 @@ class SyncClient {
     window.addEventListener('offline', () => {
       if (useApp.getState().auth) useApp.getState().setSync({ status: 'offline', peers: [] });
     });
-    window.addEventListener('beforeunload', () => this.savePending());
+    window.addEventListener('beforeunload', () => {
+      this.savePending();
+      void this.flushOffline();
+    });
+    window.addEventListener('pagehide', () => {
+      void this.flushOffline();
+    });
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this.hardReconnect();
     });
@@ -60,6 +74,9 @@ class SyncClient {
    */
   async restart() {
     const auth = useApp.getState().auth;
+
+    // 先把攒在内存里的「退出期间写入」落盘，否则下面读 pending 会漏掉它们
+    await this.flushOffline();
     const prevBucket = this.bucket;
     const nextBucket = auth ? bucketOf(auth) : 'guest';
 
@@ -96,6 +113,30 @@ class SyncClient {
     this.queue = merged;
     this.syncPendingCount();
     this.connect();
+  }
+
+  private queueForBucket(bucket: string, op: Op) {
+    const list = this.offlineQueue.get(bucket) ?? [];
+    list.push(op);
+    this.offlineQueue.set(bucket, list);
+    useApp.getState().setSync({ pending: list.length });
+    if (this.offlineTimer) return;
+    this.offlineTimer = window.setTimeout(() => {
+      this.offlineTimer = null;
+      void this.flushOffline();
+    }, 260);
+  }
+
+  private async flushOffline() {
+    if (!this.offlineQueue.size) return;
+    const entries = [...this.offlineQueue.entries()];
+    this.offlineQueue.clear();
+    for (const [bucket, ops] of entries) {
+      const saved = (await idbGet<Op[]>(pendingKey(bucket))) ?? [];
+      const seen = new Set((Array.isArray(saved) ? saved : []).map((o) => o.id));
+      const merged = (Array.isArray(saved) ? saved : []).concat(ops.filter((o) => !seen.has(o.id)));
+      await idbSet(pendingKey(bucket), merged);
+    }
   }
 
   private savePending() {

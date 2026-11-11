@@ -58,6 +58,7 @@ export function Sidebar() {
   const deviceName = useApp((s) => s.deviceName);
   const sync = useApp((s) => s.sync);
   const user = useApp((s) => s.user);
+  const lastUser = useApp((s) => s.lastUser);
   const signOut = useApp((s) => s.signOut);
   const openSheet = useUI((s) => s.open);
 
@@ -149,7 +150,11 @@ export function Sidebar() {
           </div>
           <div className="account-row">
             <span className="account-name">
-              {user ? `@${user.username}` : '未登录 · 仅本机'}
+              {user
+                ? `@${user.username}`
+                : lastUser
+                  ? `@${lastUser.username} · 已退出`
+                  : '未登录 · 仅本机'}
             </span>
             <button
               className="account-link"

@@ -34,6 +34,8 @@ const LS = {
   client: 'ssj:client',
   name: 'ssj:device',
   tab: 'ssj:tab',
+  last: 'ssj:lastBucket',
+  lastUser: 'ssj:lastUser',
 };
 
 function bootIdentity() {
@@ -64,6 +66,19 @@ export const pendingKey = (bucket: string) => `pending:${bucket}`;
 
 const emptySnapshot = (): Snapshot => ({ memos: {}, folders: {} });
 
+function readLastUser(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem(LS.lastUser);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLastUser(user: AuthUser) {
+  localStorage.setItem(LS.lastUser, JSON.stringify(user));
+}
+
 /** 同一 id 取 hlc 更大的一方，用于「本地游客记录 ↔ 账号已有记录」的合并 */
 function mergeSnapshots(a: Snapshot, b: Snapshot): Snapshot {
   const memos: Record<string, Memo> = { ...a.memos };
@@ -83,6 +98,10 @@ interface AppState {
   ready: boolean;
   auth: AuthState | null;
   user: AuthUser | null;
+  /** 当前内存数据所属的分区：未登录但保留着上一个账号的缓存时是 u:<id>，不是 guest */
+  viewBucket: string;
+  /** 退出后仍展示的那个账号，用于侧栏文案 */
+  lastUser: AuthUser | null;
   clientId: string;
   deviceName: string;
   platform: string;
@@ -98,6 +117,7 @@ interface AppState {
   signIn: (auth: AuthState) => Promise<void>;
   signOut: () => Promise<void>;
   expireSession: () => Promise<void>;
+  clearCache: () => Promise<void>;
 
   addMemo: (input: { text: string; images?: string[]; folderId?: string | null }) => string;
   updateMemo: (id: string, patch: Partial<Pick<Memo, 'text' | 'folderId' | 'images' | 'pinned'>>) => void;
@@ -120,8 +140,8 @@ interface AppState {
 }
 
 async function writeState() {
-  const { auth, memos, folders } = useApp.getState();
-  await idbSet(stateKey(bucketOf(auth)), { memos, folders, savedAt: Date.now() });
+  const { viewBucket, memos, folders } = useApp.getState();
+  await idbSet(stateKey(viewBucket), { memos, folders, savedAt: Date.now() });
 }
 
 const persist = debounce(() => {
@@ -156,16 +176,27 @@ export const useApp = create<AppState>((set, get) => ({
   folders: {},
   tab: (localStorage.getItem(LS.tab) as Tab) || 'record',
   folderFilter: null,
+  viewBucket: 'guest',
+  lastUser: null,
   sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
   remoteHits: {},
   toast: null,
 
   async hydrate() {
     const auth = readAuth();
-    let snap = await idbGet<Snapshot>(stateKey(bucketOf(auth)));
+    // 未登录时若本机还留着上次账号的缓存，就继续展示它，而不是切到一个空白工作区
+    const cachedBucket = localStorage.getItem(LS.last);
+    let bucket = auth ? bucketOf(auth) : cachedBucket || 'guest';
+    let snap = await idbGet<Snapshot>(stateKey(bucket));
+
+    if (!auth && bucket !== 'guest' && !snap) {
+      // 分区数据被清掉了，退回游客分区
+      bucket = 'guest';
+      snap = await idbGet<Snapshot>(stateKey(bucket));
+    }
 
     // 旧版本没有账号概念，把匿名数据迁到游客分区
-    if (!snap && !auth) {
+    if (!snap && bucket === 'guest') {
       const legacy = await idbGet<Snapshot & { savedAt?: number }>('state');
       if (legacy?.memos) {
         snap = { memos: legacy.memos, folders: legacy.folders ?? {} };
@@ -174,9 +205,12 @@ export const useApp = create<AppState>((set, get) => ({
       }
     }
 
+    const lastUser = readLastUser();
     set({
       auth,
       user: auth?.user ?? null,
+      viewBucket: bucket,
+      lastUser: auth?.user ?? (bucket === 'guest' ? null : lastUser),
       memos: snap?.memos ?? {},
       folders: snap?.folders ?? {},
       ready: true,
@@ -184,25 +218,39 @@ export const useApp = create<AppState>((set, get) => ({
     });
   },
 
-  /** 登录 / 注册成功后：合并游客记录 → 写入账号分区 → 清空游客分区 → 重放游客记录到云端 */
+  /**
+   * 登录 / 注册成功后：
+   * 只有「原本就在游客分区」时，才把当前内容并进账号；已经是另一个账号的分区时不合并，
+   * 避免把 A 的记录带进 B。合并后清空游客分区，再把游客来源的记录重放上传。
+   */
   async signIn(auth) {
     const s = get();
-    const guest: Snapshot = s.auth ? emptySnapshot() : { memos: s.memos, folders: s.folders };
-    const target = (await idbGet<Snapshot>(stateKey(bucketOf(auth)))) ?? emptySnapshot();
+    const bucket = bucketOf(auth);
+    const sameBucket = s.viewBucket === bucket;
+    const mergeGuest = s.viewBucket === 'guest';
+    const guest: Snapshot = mergeGuest ? { memos: s.memos, folders: s.folders } : emptySnapshot();
+
+    const target = sameBucket
+      ? { memos: s.memos, folders: s.folders }
+      : ((await idbGet<Snapshot>(stateKey(bucket))) ?? emptySnapshot());
     const merged = mergeSnapshots(target, guest);
 
     writeAuth(auth);
+    saveLastUser(auth.user);
+    localStorage.setItem(LS.last, bucket);
     set({
       auth,
       user: auth.user,
+      viewBucket: bucket,
+      lastUser: auth.user,
       memos: merged.memos,
       folders: merged.folders,
       folderFilter: null,
       remoteHits: {},
       sync: { status: 'connecting', peers: [], pending: 0, lastAt: 0 },
     });
-    await idbSet(stateKey(bucketOf(auth)), merged);
-    await idbSet(stateKey('guest'), emptySnapshot());
+    await idbSet(stateKey(bucket), merged);
+    if (mergeGuest) await idbSet(stateKey('guest'), emptySnapshot());
 
     // 游客期间写的记录：按原 hlc 重放到账号，冲突交给服务端 LWW 判定
     for (const m of Object.values(guest.memos)) emitOp(makeOp('memo', m.id, 'put', m.hlc, m));
@@ -214,43 +262,63 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
+  /**
+   * 退出登录：只断开同步，本机这份记录继续显示。
+   * 退出后新写的记录仍然写进该账号的分区（pending 队列同样按分区落盘），
+   * 下次登录同一账号会把它们补传；登录别的账号则完全看不到。
+   */
   async signOut() {
     const s = get();
     await persistNow();
     const token = s.auth?.token;
+    const bucket = s.viewBucket;
     if (token) void apiLogout(token);
     clearAuth();
+    if (bucket !== 'guest') localStorage.setItem(LS.last, bucket);
     set({
       auth: null,
       user: null,
-      memos: {},
-      folders: {},
-      folderFilter: null,
-      remoteHits: {},
+      lastUser: s.auth?.user ?? s.lastUser,
       sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
     });
-    // 退出后本地从空白开始，账号内容留在服务端与该账号分区里
-    await idbSet(stateKey('guest'), emptySnapshot());
     emitAuthChange();
-    get().notify('已退出登录，之后的记录只保存在本机');
+    void persistNow();
+    get().notify('已退出登录，记录仍保留在本机');
   },
 
-  /** token 失效：保留本地回退到游客，不做任何云端写入 */
+  /** token 失效：同样保留本机数据，只停同步 */
   async expireSession() {
+    const s = get();
     await persistNow();
     clearAuth();
     set({
       auth: null,
       user: null,
+      lastUser: s.auth?.user ?? s.lastUser,
+      sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
+    });
+    emitAuthChange();
+    void persistNow();
+    get().notify('登录已失效，记录仍留在本机', 'error');
+  },
+
+  /** 只清本机缓存，不动云端；仅在没有登录时提供 */
+  async clearCache() {
+    if (get().auth) return;
+    const bucket = get().viewBucket;
+    set({
       memos: {},
       folders: {},
       folderFilter: null,
       remoteHits: {},
-      sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
+      viewBucket: 'guest',
+      lastUser: null,
     });
-    await idbSet(stateKey('guest'), emptySnapshot());
-    emitAuthChange();
-    get().notify('登录已失效，已切回本地模式', 'error');
+    await idbSet(stateKey(bucket), emptySnapshot());
+    if (bucket !== 'guest') await idbDel(seqKey(bucket));
+    localStorage.removeItem(LS.last);
+    localStorage.removeItem(LS.lastUser);
+    get().notify('本机缓存已清除，云端记录不受影响');
   },
 
   addMemo({ text, images = [], folderId = null }) {

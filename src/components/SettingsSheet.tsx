@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { downloadJson } from '../lib/format';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
 import { IconDownload, IconUpload } from './Icons';
@@ -15,7 +15,10 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
   const importData = useApp((s) => s.importData);
   const auth = useApp((s) => s.auth);
   const signOut = useApp((s) => s.signOut);
+  const lastUser = useApp((s) => s.lastUser);
+  const clearCache = useApp((s) => s.clearCache);
   const openSheet = useUI((s) => s.open);
+  const [confirmClear, setConfirmClear] = useState(false);
   const notify = useApp((s) => s.notify);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -92,11 +95,17 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
             <>
               <div className="settings-row">
                 <div className="settings-row__main">
-                  <div className="settings-row__label">未登录</div>
-                  <div className="settings-row__desc">当前只写在本机、不上传；登录后会并入该账号</div>
+                  <div className="settings-row__label">
+                    {lastUser ? `@${lastUser.username} · 已退出` : '未登录'}
+                  </div>
+                  <div className="settings-row__desc">
+                    {lastUser
+                      ? '记录仍保留在本机，可以继续写；登录同一账号后会自动补传'
+                      : '当前只写在本机、不上传；登录后会并入该账号'}
+                  </div>
                 </div>
               </div>
-              <div className="row-options" style={{ margin: '4px 0 16px' }}>
+              <div className="row-options" style={{ margin: '4px 0 10px' }}>
                 <button className="option" onClick={() => openSheet({ kind: 'auth', mode: 'login' })}>
                   登录
                 </button>
@@ -107,6 +116,33 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
                   注册新账号
                 </button>
               </div>
+              {lastUser ? (
+                <div className="settings-row settings-row--minor">
+                  <div className="settings-row__main">
+                    <div className="settings-row__desc">
+                      清除后本机不再保留这份缓存，云端记录不受影响
+                    </div>
+                  </div>
+                  <div className="settings-row__right">
+                    <button
+                      className="account-link"
+                      data-confirm={confirmClear}
+                      onClick={() => {
+                        if (!confirmClear) {
+                          setConfirmClear(true);
+                          window.setTimeout(() => setConfirmClear(false), 4000);
+                          return;
+                        }
+                        setConfirmClear(false);
+                        void clearCache();
+                        onClose();
+                      }}
+                    >
+                      {confirmClear ? '确认清除' : '清除本机缓存'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
         </div>

@@ -16,6 +16,7 @@ export function Composer() {
 
   const addMemo = useApp((s) => s.addMemo);
   const loggedIn = useApp((s) => Boolean(s.auth));
+  const lastUser = useApp((s) => s.lastUser);
   const folders = useApp((s) => s.folders);
   const folderList = liveFolders(folders);
   const target = targetId ? folders[targetId] : null;
@@ -173,7 +174,9 @@ export function Composer() {
               ? `新记录将归入 ${targetName}`
               : loggedIn
                 ? '所有设备实时同步'
-                : '仅保存在本机，登录后并入账号'}
+                : lastUser
+                  ? '已退出登录 · 只写在本机'
+                  : '仅保存在本机，登录后并入账号'}
           </span>
         </div>
 
