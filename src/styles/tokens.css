@@ -1,0 +1,164 @@
+/* ------------------------------------------------------------------ *
+ * 随手记 · 设计令牌
+ * 参考目标：iOS 原生质感 + 纸张的暖调。不用纯白，不用纯黑，
+ * 全局只有一个强调色（陶土红），其余都靠层次与留白。
+ * ------------------------------------------------------------------ */
+
+:root {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* 画布 */
+  --canvas: #f4f2ee;
+  --canvas-deep: #eeebe5;
+  --surface: #ffffff;
+  --surface-2: #fbfaf7;
+  --surface-3: #f2efe9;
+
+  /* 气泡 */
+  --bubble-them: #e9e5de;
+  --bubble-me: #dcd5c9;
+
+  /* 文字 */
+  --ink: #1b1917;
+  --ink-2: #57514a;
+  --ink-3: #8c857b;
+  --ink-4: #b6afa4;
+
+  /* 线条与分隔 */
+  --line: rgba(27, 25, 23, 0.07);
+  --line-strong: rgba(27, 25, 23, 0.12);
+  --line-on-dark: rgba(255, 255, 255, 0.12);
+
+  /* 唯一强调色 */
+  --accent: #a9553a;
+  --accent-2: #c07a5c;
+  --accent-wash: #f6e7df;
+  --ok: #4f7a5e;
+
+  /* 阴影：全部偏暖，避免灰扑扑 */
+  --shadow-xs: 0 1px 1px rgba(38, 30, 20, 0.04);
+  --shadow-sm: 0 1px 2px rgba(38, 30, 20, 0.05), 0 6px 16px -12px rgba(38, 30, 20, 0.3);
+  --shadow-md: 0 1px 2px rgba(38, 30, 20, 0.05), 0 14px 34px -20px rgba(38, 30, 20, 0.42);
+  --shadow-lg: 0 2px 6px rgba(38, 30, 20, 0.06), 0 32px 64px -32px rgba(38, 30, 20, 0.5);
+  --shadow-float: 0 1px 1px rgba(38, 30, 20, 0.04), 0 20px 40px -24px rgba(38, 30, 20, 0.35);
+
+  /* 圆角 */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+
+  /* 动效曲线 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* 布局 */
+  --sidebar-w: 250px;
+  --column-w: 720px;
+  --gutter: 22px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+/* 极淡的纸张氛围，靠光而不是靠纹理 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 50% -12%, #fdfcfa 0%, rgba(253, 252, 250, 0) 55%),
+    radial-gradient(90% 60% at 110% 110%, #efe9df 0%, rgba(239, 233, 223, 0) 60%);
+  z-index: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  outline: none;
+}
+
+::selection {
+  background: rgba(169, 85, 58, 0.18);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(27, 25, 23, 0.14);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(27, 25, 23, 0.24);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

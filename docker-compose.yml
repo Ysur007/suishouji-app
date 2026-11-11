@@ -1,0 +1,12 @@
+services:
+  suishouji:
+    build: .
+    container_name: suishouji
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: 8787
+      DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
