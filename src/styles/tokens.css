@@ -1,7 +1,8 @@
 /* ------------------------------------------------------------------ *
- * 随手记 · 设计令牌
- * 参考目标：iOS 原生质感 + 纸张的暖调。不用纯白，不用纯黑，
- * 全局只有一个强调色（陶土红），其余都靠层次与留白。
+ * 随手记 · 设计令牌（黑白高对比）
+ *
+ * 规则只有一条：黑 = 选中 / 主操作 / 自己写的；白 = 容器 / 未选中。
+ * 没有彩色，层级全靠明度、边框粗细和留白。
  * ------------------------------------------------------------------ */
 
 :root {
@@ -11,39 +12,40 @@
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   /* 画布 */
-  --canvas: #f4f2ee;
-  --canvas-deep: #eeebe5;
+  --canvas: #f2f2f2;
+  --canvas-deep: #e9e9e9;
   --surface: #ffffff;
-  --surface-2: #fbfaf7;
-  --surface-3: #f2efe9;
+  --surface-2: #fafafa;
+  --surface-3: #efefef;
 
-  /* 气泡 */
-  --bubble-them: #e9e5de;
-  --bubble-me: #dcd5c9;
+  /* 气泡：左白右黑 */
+  --bubble-them: #ffffff;
+  --bubble-me: #0a0a0a;
 
   /* 文字 */
-  --ink: #1b1917;
-  --ink-2: #57514a;
-  --ink-3: #8c857b;
-  --ink-4: #b6afa4;
+  --ink: #0a0a0a;
+  --ink-2: #3d3d3d;
+  --ink-3: #707070;
+  --ink-4: #a3a3a3;
+  --on-ink: #ffffff;
 
-  /* 线条与分隔 */
-  --line: rgba(27, 25, 23, 0.07);
-  --line-strong: rgba(27, 25, 23, 0.12);
-  --line-on-dark: rgba(255, 255, 255, 0.12);
+  /* 线条：高对比下线条要看得见 */
+  --line: rgba(10, 10, 10, 0.12);
+  --line-strong: rgba(10, 10, 10, 0.24);
+  --line-on-dark: rgba(255, 255, 255, 0.16);
 
-  /* 唯一强调色 */
-  --accent: #a9553a;
-  --accent-2: #c07a5c;
-  --accent-wash: #f6e7df;
-  --ok: #4f7a5e;
+  /* 唯一"强调色"就是黑本身 */
+  --accent: #0a0a0a;
+  --accent-2: #3d3d3d;
+  --accent-wash: #ececec;
+  --ok: #0a0a0a;
 
-  /* 阴影：全部偏暖，避免灰扑扑 */
-  --shadow-xs: 0 1px 1px rgba(38, 30, 20, 0.04);
-  --shadow-sm: 0 1px 2px rgba(38, 30, 20, 0.05), 0 6px 16px -12px rgba(38, 30, 20, 0.3);
-  --shadow-md: 0 1px 2px rgba(38, 30, 20, 0.05), 0 14px 34px -20px rgba(38, 30, 20, 0.42);
-  --shadow-lg: 0 2px 6px rgba(38, 30, 20, 0.06), 0 32px 64px -32px rgba(38, 30, 20, 0.5);
-  --shadow-float: 0 1px 1px rgba(38, 30, 20, 0.04), 0 20px 40px -24px rgba(38, 30, 20, 0.35);
+  /* 阴影：中性、克制，只服务于浮层 */
+  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 16px -12px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.06), 0 14px 34px -20px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.08), 0 32px 64px -32px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 1px 1px rgba(0, 0, 0, 0.04), 0 20px 40px -24px rgba(0, 0, 0, 0.4);
 
   /* 圆角 */
   --r-xs: 8px;
@@ -92,15 +94,13 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* 极淡的纸张氛围，靠光而不是靠纹理 */
+/* 顶部一层极淡的白光，让灰底不至于死板 */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(120% 70% at 50% -12%, #fdfcfa 0%, rgba(253, 252, 250, 0) 55%),
-    radial-gradient(90% 60% at 110% 110%, #efe9df 0%, rgba(239, 233, 223, 0) 60%);
+  background: radial-gradient(120% 62% at 50% -14%, #fbfbfb 0%, rgba(251, 251, 251, 0) 58%);
   z-index: 0;
 }
 
@@ -124,7 +124,8 @@ textarea {
 }
 
 ::selection {
-  background: rgba(169, 85, 58, 0.18);
+  background: #0a0a0a;
+  color: #ffffff;
 }
 
 h1,
@@ -139,13 +140,13 @@ p {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(27, 25, 23, 0.14);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(27, 25, 23, 0.24);
+  background: rgba(0, 0, 0, 0.32);
   background-clip: content-box;
   border: 3px solid transparent;
 }

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { BrandGlyph, IconDevice, IconFolder, IconRecord, IconSpace } from './Icons';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
 
-const PEER_COLORS = ['#A9553A', '#4F7A5E', '#6B6F8C', '#8A6A3C'];
+const PEER_COLORS = ['#0A0A0A', '#333333', '#555555', '#777777'];
 
 export function SyncBadge({ compact = false }: { compact?: boolean }) {
   const sync = useApp((s) => s.sync);
@@ -79,7 +79,7 @@ export function Sidebar() {
           <button
             key={item.key}
             className="nav__item"
-            data-active={tab === item.key || (item.key === 'space' && tab === 'folders')}
+            data-active={tab === item.key}
             onClick={() => setTab(item.key)}
           >
             {item.icon}
@@ -110,7 +110,7 @@ export function Sidebar() {
                     height: 9,
                     borderRadius: 3,
                     background: `var(--tone-${f.tone})`,
-                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.06)',
+                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.16)',
                     flex: 'none',
                   }}
                 />

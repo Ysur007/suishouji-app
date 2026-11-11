@@ -190,7 +190,7 @@ export function Composer() {
                     setPicker(false);
                   }}
                 >
-                  <span className="folder-pop__dot" style={{ background: '#ded7ca' }} />
+                  <span className="folder-pop__dot" style={{ background: '#dcdcdc' }} />
                   未分类
                 </button>
                 {folderList.map((f) => (
