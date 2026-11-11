@@ -47,7 +47,7 @@ export interface Peer {
   connectedAt: number;
 }
 
-export type SyncStatus = 'connecting' | 'online' | 'offline';
+export type SyncStatus = 'connecting' | 'online' | 'offline' | 'guest';
 
 export interface SyncState {
   status: SyncStatus;

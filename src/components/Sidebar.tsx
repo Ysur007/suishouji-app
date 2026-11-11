@@ -1,13 +1,20 @@
 import { motion } from 'framer-motion';
 import { BrandGlyph, IconDevice, IconFolder, IconRecord, IconSpace, IconTimeline } from './Icons';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
+import { useUI } from '../lib/ui';
 
 const PEER_COLORS = ['#0A0A0A', '#333333', '#555555', '#777777'];
 
 export function SyncBadge({ compact = false }: { compact?: boolean }) {
   const sync = useApp((s) => s.sync);
   const label =
-    sync.status === 'online' ? '已同步' : sync.status === 'connecting' ? '连接中' : '离线';
+    sync.status === 'online'
+      ? '已同步'
+      : sync.status === 'connecting'
+        ? '连接中'
+        : sync.status === 'guest'
+          ? '本地模式'
+          : '离线';
   const pending = sync.pending;
 
   return (
@@ -50,6 +57,9 @@ export function Sidebar() {
   const setFolderFilter = useApp((s) => s.setFolderFilter);
   const deviceName = useApp((s) => s.deviceName);
   const sync = useApp((s) => s.sync);
+  const user = useApp((s) => s.user);
+  const signOut = useApp((s) => s.signOut);
+  const openSheet = useUI((s) => s.open);
 
   const memoCount = liveMemos(memos).length;
   const folderList = liveFolders(folders);
@@ -136,6 +146,20 @@ export function Sidebar() {
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {deviceName}
             </span>
+          </div>
+          <div className="account-row">
+            <span className="account-name">
+              {user ? `@${user.username}` : '未登录 · 仅本机'}
+            </span>
+            <button
+              className="account-link"
+              onClick={() => {
+                if (user) void signOut();
+                else openSheet({ kind: 'auth', mode: 'login' });
+              }}
+            >
+              {user ? '退出' : '登录'}
+            </button>
           </div>
           <motion.div
             style={{ height: 2, borderRadius: 2, background: 'var(--line)', overflow: 'hidden' }}

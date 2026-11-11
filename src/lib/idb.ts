@@ -48,6 +48,20 @@ export async function idbSet(key: string, value: unknown): Promise<void> {
   }
 }
 
+export async function idbDel(key: string): Promise<void> {
+  try {
+    const db = await open();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 export function debounce<T extends (...args: never[]) => void>(fn: T, wait: number): T {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return ((...args: never[]) => {

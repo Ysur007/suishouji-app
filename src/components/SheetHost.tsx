@@ -4,6 +4,7 @@ import { Lightbox, SheetFrame } from './Sheet';
 import { MemoEditorBody } from './MemoEditor';
 import { NewFolderBody, RenameFolderBody } from './NewFolderSheet';
 import { SettingsBody } from './SettingsSheet';
+import { AuthBody } from './AuthSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -14,7 +15,9 @@ export function SheetHost() {
       ? `editor:${sheet.memoId}`
       : sheet.kind === 'rename-folder'
         ? `rename:${sheet.folderId}`
-        : sheet.kind
+        : sheet.kind === 'auth'
+          ? `auth:${sheet.mode}`
+          : sheet.kind
     : 'none';
 
   return (
@@ -28,6 +31,7 @@ export function SheetHost() {
               <RenameFolderBody folderId={sheet.folderId} onClose={close} />
             )}
             {sheet.kind === 'settings' && <SettingsBody onClose={close} />}
+            {sheet.kind === 'auth' && <AuthBody mode={sheet.mode} onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

@@ -1,10 +1,8 @@
 /**
- * 同步协议的数据结构。
+ * 同步协议与账号体系的数据结构。
  *
- * 客户端与服务端共用同一套 Op（操作）模型：
- *  - 每一次写入都变成一条不可变的 Op；
- *  - 记录上带一个 HLC（混合逻辑时钟）字符串，用于「后写覆盖」的冲突消解；
- *  - 删除是墓碑（kind = "del"），因此多端离线删除也能正确收敛。
+ * 关键约束：所有记录、操作日志、在线设备都以 userId 为分区键，
+ * 服务端任何读取路径都必须带上 userId，否则就会串号。
  */
 
 export type EntityKind = 'memo' | 'folder';
@@ -25,9 +23,10 @@ export interface Op {
   data?: Record<string, unknown>;
 }
 
+/** 落库的 Op 额外带归属用户与服务端序号 */
 export interface StoredOp extends Op {
-  /** 服务端单调递增序号，客户端用它做增量拉取 */
   seq: number;
+  userId: string;
 }
 
 export interface StoredRecord {
@@ -38,11 +37,30 @@ export interface StoredRecord {
   [key: string]: unknown;
 }
 
+export interface UserRow {
+  id: string;
+  username: string;
+  salt: string;
+  hash: string;
+  createdAt: number;
+}
+
+export interface PublicUser {
+  id: string;
+  username: string;
+}
+
+export interface TokenRow {
+  userId: string;
+  createdAt: number;
+}
+
 export interface Peer {
   clientId: string;
   name: string;
   platform: string;
   connectedAt: number;
+  userId: string;
 }
 
 export interface ClientMessage {
@@ -51,6 +69,7 @@ export interface ClientMessage {
   name?: string;
   platform?: string;
   since?: number;
+  token?: string;
   ops?: Op[];
 }
 
@@ -61,4 +80,5 @@ export type ServerMessage =
   | { type: 'reset'; seq: number; records: StoredRecord[] }
   | { type: 'ack'; seq: number; ids: string[] }
   | { type: 'presence'; peers: Peer[] }
+  | { type: 'unauthorized'; reason: string }
   | { type: 'pong' };

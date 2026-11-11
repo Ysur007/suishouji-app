@@ -1,6 +1,6 @@
-import { onOp } from './bus';
+import { onAuthChange, onOp } from './bus';
 import { debounce, idbGet, idbSet } from './idb';
-import { LS, persistNow, useApp } from './store';
+import { bucketOf, pendingKey, persistNow, seqKey, useApp } from './store';
 import type { Op, Peer } from './types';
 
 type ServerMessage =
@@ -10,6 +10,7 @@ type ServerMessage =
   | { type: 'reset'; seq: number; records: Array<Record<string, unknown>> }
   | { type: 'ack'; seq: number; ids: string[] }
   | { type: 'presence'; peers: Peer[] }
+  | { type: 'unauthorized'; reason: string }
   | { type: 'pong' };
 
 const MAX_BACKOFF = 8000;
@@ -18,37 +19,89 @@ class SyncClient {
   private ws: WebSocket | null = null;
   private queue: Op[] = [];
   private inflight: Op[] = [];
-  private since = Number(localStorage.getItem(LS.seq) ?? 0) || 0;
+  private since = 0;
   private retry = 0;
   private reconnectTimer: number | null = null;
   private flushTimer: number | null = null;
   private started = false;
+  private bucket = 'guest';
 
   start() {
     if (this.started) return;
     this.started = true;
-    onOp((op) => this.enqueue(op));
-    void this.restorePending().then(() => this.connect());
+
+    // 未登录不产生任何云端写入
+    onOp((op) => {
+      if (!useApp.getState().auth) return;
+      this.enqueue(op);
+    });
+    onAuthChange(() => {
+      void this.restart();
+    });
+
+    void this.restart();
+
     window.addEventListener('online', () => this.hardReconnect());
     window.addEventListener('offline', () => {
-      useApp.getState().setSync({ status: 'offline', peers: [] });
+      if (useApp.getState().auth) useApp.getState().setSync({ status: 'offline', peers: [] });
     });
+    window.addEventListener('beforeunload', () => this.savePending());
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this.hardReconnect();
     });
   }
 
-  private async restorePending() {
-    const saved = await idbGet<Op[]>('pending');
-    if (Array.isArray(saved) && saved.length) {
-      this.queue = [...saved, ...this.queue];
-      this.syncPendingCount();
+  /**
+   * 切换账号（或退出）时重建连接与队列。
+   *
+   * 关键点：游客 → 账号 的切换不能丢队列，刚入队的「重放游客记录」必须跟着一起走；
+   * 而账号 A → 账号 B 的切换绝不能把 A 的未发送操作推给 B，所以只在
+   * 「原本是游客」或「账号没变」时继承内存队列。
+   */
+  async restart() {
+    const auth = useApp.getState().auth;
+    const prevBucket = this.bucket;
+    const nextBucket = auth ? bucketOf(auth) : 'guest';
+
+    // 旧账号的未发送操作落盘保存（退出后再次登录还能补发）
+    if (prevBucket !== 'guest') this.savePending();
+
+    const carried =
+      prevBucket === 'guest' || prevBucket === nextBucket
+        ? [...this.inflight, ...this.queue]
+        : [];
+
+    this.close();
+    this.queue = [];
+    this.inflight = [];
+
+    if (!auth) {
+      this.bucket = 'guest';
+      this.since = 0;
+      useApp.getState().setSync({ status: 'guest', peers: [], pending: 0 });
+      return;
     }
+
+    this.bucket = nextBucket;
+    this.since = Number(localStorage.getItem(seqKey(nextBucket)) ?? 0) || 0;
+
+    const saved = await idbGet<Op[]>(pendingKey(nextBucket));
+    const seen = new Set<string>();
+    const merged: Op[] = [];
+    for (const op of [...(Array.isArray(saved) ? saved : []), ...carried]) {
+      if (seen.has(op.id)) continue;
+      seen.add(op.id);
+      merged.push(op);
+    }
+    this.queue = merged;
+    this.syncPendingCount();
+    this.connect();
   }
 
-  private persistPending = debounce(() => {
-    void idbSet('pending', [...this.inflight, ...this.queue]);
-  }, 200);
+  private savePending() {
+    if (this.bucket === 'guest') return;
+    void idbSet(pendingKey(this.bucket), [...this.inflight, ...this.queue]);
+  }
 
   private syncPendingCount() {
     useApp.getState().setSync({ pending: this.queue.length + this.inflight.length });
@@ -59,12 +112,15 @@ class SyncClient {
     this.syncPendingCount();
     this.persistPending();
     if (this.flushTimer) return;
-    // 60ms 合并窗口：连续操作（例如删文件夹时连带改一批记录）合并成一次发送
     this.flushTimer = window.setTimeout(() => {
       this.flushTimer = null;
       this.flush();
     }, 60);
   }
+
+  private persistPending = debounce(() => {
+    this.savePending();
+  }, 200);
 
   private flush() {
     if (!this.queue.length) return;
@@ -83,7 +139,10 @@ class SyncClient {
   }
 
   private connect() {
+    const auth = useApp.getState().auth;
+    if (!auth) return;
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return;
+
     const { clientId, deviceName, platform, setSync } = useApp.getState();
     setSync({ status: 'connecting' });
 
@@ -100,6 +159,7 @@ class SyncClient {
           name: deviceName,
           platform,
           since: this.since,
+          token: auth.token,
         }),
       );
     };
@@ -114,11 +174,11 @@ class SyncClient {
 
     ws.onclose = () => {
       if (this.ws === ws) this.ws = null;
-      // 未确认的写入放回队列，下次连上重发（服务端按 op.id 幂等）
       if (this.inflight.length) {
         this.queue.unshift(...this.inflight);
         this.inflight = [];
       }
+      if (!useApp.getState().auth) return;
       useApp.getState().setSync({ status: 'offline', peers: [], pending: this.queue.length });
       this.persistPending();
       this.scheduleReconnect();
@@ -133,13 +193,36 @@ class SyncClient {
     };
   }
 
+  private close() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    const ws = this.ws;
+    this.ws = null;
+    if (!ws) return;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    try {
+      ws.close();
+    } catch {
+      /* noop */
+    }
+  }
+
   private hardReconnect() {
+    if (!useApp.getState().auth) return;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.connect();
       this.flush();
       return;
     }
@@ -185,11 +268,20 @@ class SyncClient {
         this.syncPendingCount();
         this.persistPending();
         void this.commit(msg.seq);
-        app.setSync({ status: 'online', lastAt: Date.now(), pending: this.queue.length + this.inflight.length });
+        app.setSync({
+          status: 'online',
+          lastAt: Date.now(),
+          pending: this.queue.length + this.inflight.length,
+        });
         break;
       }
       case 'presence': {
         app.setPeers(msg.peers);
+        break;
+      }
+      case 'unauthorized': {
+        this.close();
+        void app.expireSession();
         break;
       }
       default:
@@ -210,7 +302,7 @@ class SyncClient {
   private advance(seq: number) {
     if (!Number.isFinite(seq) || seq <= this.since) return;
     this.since = seq;
-    localStorage.setItem(LS.seq, String(seq));
+    if (this.bucket !== 'guest') localStorage.setItem(seqKey(this.bucket), String(seq));
   }
 }
 

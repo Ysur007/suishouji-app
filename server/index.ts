@@ -20,13 +20,14 @@ interface SocketMeta {
   name: string;
   platform: string;
   connectedAt: number;
+  userId: string;
   alive: boolean;
 }
 
 const meta = new WeakMap<WebSocket, SocketMeta>();
 
 /* ------------------------------------------------------------------ *
- * HTTP：静态资源 + 少量 REST 接口
+ * HTTP
  * ------------------------------------------------------------------ */
 
 const MIME: Record<string, string> = {
@@ -71,10 +72,16 @@ function readBody(req: IncomingMessage, limit = 16 * 1024 * 1024): Promise<strin
   });
 }
 
+function bearer(req: IncomingMessage): string | undefined {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) return header.slice(7);
+  return undefined;
+}
+
 function serveStatic(res: ServerResponse, pathname: string) {
   if (!fs.existsSync(DIST)) {
     const hint = `<!doctype html><meta charset="utf-8"><title>随手记 · API</title>
-<body style="font:16px/1.7 -apple-system,'Segoe UI',sans-serif;padding:48px;color:#1b1917;background:#f4f2ee">
+<body style="font:16px/1.7 -apple-system,'Segoe UI',sans-serif;padding:48px;color:#0a0a0a;background:#f2f2f2">
 <h1 style="font-weight:600">随手记 · 同步服务已启动</h1>
 <p>当前是开发模式，前端请访问 <b>http://localhost:5173</b>。</p>
 <p>生产模式下先执行 <code>npm run build</code>，再访问 <b>http://localhost:${PORT}</b>。</p>
@@ -91,11 +98,12 @@ function serveStatic(res: ServerResponse, pathname: string) {
     return;
   }
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-    // SPA 兜底
     file = path.join(DIST, 'index.html');
   }
   const ext = path.extname(file).toLowerCase();
-  const cache = file.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache';
+  const cache = file.includes(`${path.sep}assets${path.sep}`)
+    ? 'public, max-age=31536000, immutable'
+    : 'no-cache';
   res.writeHead(200, { 'content-type': MIME[ext] ?? 'application/octet-stream', 'cache-control': cache });
   fs.createReadStream(file).pipe(res);
 }
@@ -109,32 +117,77 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       seq: store.seq,
       records: store.recordCount,
+      users: store.userCount,
       clients: [...wss.clients].filter((c) => c.readyState === WebSocket.OPEN).length,
       uptime: Math.round((Date.now() - startedAt) / 1000),
     });
   }
 
+  /* ----------------------------- 账号 ----------------------------- */
+
+  if ((pathname === '/api/auth/register' || pathname === '/api/auth/login') && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req, 64 * 1024)) as {
+        username?: string;
+        password?: string;
+      };
+      const username = String(body.username ?? '');
+      const password = String(body.password ?? '');
+      const result =
+        pathname === '/api/auth/register'
+          ? store.register(username, password)
+          : store.login(username, password);
+      if (!result.ok) return json(res, result.code, { error: result.error });
+      return json(res, 200, { token: result.token, user: result.user });
+    } catch (err) {
+      return json(res, 400, { error: (err as Error).message });
+    }
+  }
+
+  if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    const token = bearer(req);
+    if (token) store.logout(token);
+    return json(res, 200, { ok: true });
+  }
+
+  if (pathname === '/api/auth/me') {
+    const user = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
+    if (!user) return json(res, 401, { error: '未登录或登录已失效' });
+    return json(res, 200, { user });
+  }
+
+  /* ----------------------------- 数据 ----------------------------- */
+
+  const user = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
+
   if (pathname === '/api/snapshot') {
+    if (!user) return json(res, 401, { error: '未登录' });
     const since = Number(url.searchParams.get('since') ?? 0);
-    const ops = store.since(since);
-    if (!ops) return json(res, 200, { reset: true, seq: store.seq, records: store.allRecords() });
+    const ops = store.since(since, user.id);
+    if (!ops) {
+      return json(res, 200, { reset: true, seq: store.seq, records: store.allRecords(user.id) });
+    }
     return json(res, 200, { seq: store.seq, ops });
   }
 
   if (pathname === '/api/export') {
+    if (!user) return json(res, 401, { error: '未登录' });
     res.writeHead(200, {
       'content-type': 'application/json; charset=utf-8',
-      'content-disposition': `attachment; filename="suishouji-${new Date().toISOString().slice(0, 10)}.json"`,
+      'content-disposition': `attachment; filename="suishouji-${user.username}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.json"`,
     });
-    return res.end(JSON.stringify(store.exportAll(), null, 2));
+    return res.end(JSON.stringify(store.exportAll(user.id, user.username), null, 2));
   }
 
   if (pathname === '/api/ops' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
     try {
-      const body = JSON.parse(await readBody(req)) as { ops?: Op[]; clientId?: string };
+      const body = JSON.parse(await readBody(req)) as { ops?: Op[] };
       const ops = Array.isArray(body.ops) ? body.ops : [];
-      const accepted = store.applyMany(ops);
-      if (accepted.length) broadcast({ type: 'ops', seq: store.seq, ops: accepted });
+      const accepted = store.applyMany(ops, user.id);
+      if (accepted.length) broadcast({ type: 'ops', seq: store.seq, ops: accepted }, user.id);
       return json(res, 200, { seq: store.seq, applied: accepted.length });
     } catch (err) {
       return json(res, 400, { error: (err as Error).message });
@@ -147,7 +200,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 /* ------------------------------------------------------------------ *
- * WebSocket：实时同步 + 在线设备
+ * WebSocket：按用户分区的实时同步
  * ------------------------------------------------------------------ */
 
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 * 1024 });
@@ -156,26 +209,34 @@ function send(ws: WebSocket, msg: ServerMessage) {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
 }
 
-function currentPeers(): Peer[] {
+function peersOf(userId: string): Peer[] {
   const peers: Peer[] = [];
   for (const ws of wss.clients) {
     const m = meta.get(ws);
-    if (m && ws.readyState === WebSocket.OPEN) {
-      peers.push({ clientId: m.clientId, name: m.name, platform: m.platform, connectedAt: m.connectedAt });
+    if (m && m.userId === userId && ws.readyState === WebSocket.OPEN) {
+      peers.push({
+        clientId: m.clientId,
+        name: m.name,
+        platform: m.platform,
+        connectedAt: m.connectedAt,
+        userId: m.userId,
+      });
     }
   }
   return peers;
 }
 
-function broadcast(msg: ServerMessage, except?: WebSocket) {
+/** 只广播给同一账号的连接 */
+function broadcast(msg: ServerMessage, userId: string, except?: WebSocket) {
   for (const ws of wss.clients) {
     if (ws === except) continue;
-    send(ws, msg);
+    const m = meta.get(ws);
+    if (m?.userId === userId) send(ws, msg);
   }
 }
 
-function broadcastPresence() {
-  broadcast({ type: 'presence', peers: currentPeers() });
+function broadcastPresence(userId: string) {
+  broadcast({ type: 'presence', peers: peersOf(userId) }, userId);
 }
 
 wss.on('connection', (ws) => {
@@ -188,35 +249,51 @@ wss.on('connection', (ws) => {
     }
 
     if (msg.type === 'hello') {
-      const existing = meta.get(ws);
-      const next: SocketMeta = {
-        clientId: msg.clientId || existing?.clientId || 'anonymous',
-        name: msg.name || existing?.name || '未命名设备',
-        platform: msg.platform || existing?.platform || 'web',
-        connectedAt: existing?.connectedAt ?? Date.now(),
-        alive: true,
-      };
-      meta.set(ws, next);
-
-      send(ws, { type: 'ready', seq: store.seq, minSeq: store.minSeq, peers: currentPeers(), serverTime: Date.now() });
-
-      const since = Number(msg.since ?? 0);
-      const ops = Number.isFinite(since) ? store.since(since) : null;
-      if (ops) {
-        if (ops.length) send(ws, { type: 'sync', seq: store.seq, ops });
-        else send(ws, { type: 'sync', seq: store.seq, ops: [] });
-      } else {
-        send(ws, { type: 'reset', seq: store.seq, records: store.allRecords() });
+      const user = store.userByToken(msg.token);
+      if (!user) {
+        send(ws, { type: 'unauthorized', reason: '未登录或登录已失效' });
+        return;
       }
 
-      broadcastPresence();
+      meta.set(ws, {
+        clientId: msg.clientId || 'anonymous',
+        name: msg.name || '未命名设备',
+        platform: msg.platform || 'web',
+        connectedAt: Date.now(),
+        userId: user.id,
+        alive: true,
+      });
+
+      send(ws, {
+        type: 'ready',
+        seq: store.seq,
+        minSeq: store.minSeq,
+        peers: peersOf(user.id),
+        serverTime: Date.now(),
+      });
+
+      const since = Number(msg.since ?? 0);
+      const ops = Number.isFinite(since) ? store.since(since, user.id) : null;
+      if (ops) {
+        send(ws, { type: 'sync', seq: store.seq, ops });
+      } else {
+        send(ws, { type: 'reset', seq: store.seq, records: store.allRecords(user.id) });
+      }
+
+      broadcastPresence(user.id);
+      return;
+    }
+
+    const me = meta.get(ws);
+    if (!me) {
+      send(ws, { type: 'unauthorized', reason: '连接未认证' });
       return;
     }
 
     if (msg.type === 'ops' && Array.isArray(msg.ops)) {
-      const accepted = store.applyMany(msg.ops);
+      const accepted = store.applyMany(msg.ops, me.userId);
       if (accepted.length) {
-        broadcast({ type: 'ops', seq: store.seq, ops: accepted }, ws);
+        broadcast({ type: 'ops', seq: store.seq, ops: accepted }, me.userId, ws);
       }
       send(ws, { type: 'ack', seq: store.seq, ids: msg.ops.map((o) => o.id) });
       return;
@@ -226,7 +303,8 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    broadcastPresence();
+    const m = meta.get(ws);
+    if (m) broadcastPresence(m.userId);
   });
 
   ws.on('pong', () => {
@@ -235,7 +313,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-// 心跳：清掉半开连接，否则「在线设备」会虚高
 const heartbeat = setInterval(() => {
   for (const ws of wss.clients) {
     const m = meta.get(ws);
@@ -257,7 +334,7 @@ wss.on('close', () => clearInterval(heartbeat));
 server.listen(PORT, () => {
   console.log(`\n  随手记 · 同步服务  http://localhost:${PORT}`);
   console.log(`  数据文件         ${path.join(DATA_DIR, 'db.json')}`);
-  console.log(`  已载入记录       ${store.recordCount} 条 / seq ${store.seq}\n`);
+  console.log(`  已载入           ${store.userCount} 个账号 / ${store.recordCount} 条记录 / seq ${store.seq}\n`);
 });
 
 function shutdown(signal: string) {

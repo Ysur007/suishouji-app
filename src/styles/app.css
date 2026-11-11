@@ -2112,3 +2112,94 @@ textarea.field__input {
     bottom: 88px;
   }
 }
+
+
+/* ------------------------------------------------------------------ *
+ * 账号
+ * ------------------------------------------------------------------ */
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+
+.account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-link {
+  flex: none;
+  font-size: 11px;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  opacity: 0.65;
+  transition: opacity 0.16s ease;
+}
+
+.account-link:hover {
+  opacity: 1;
+}
+
+.sync-dot[data-status='guest'] {
+  background: transparent;
+  border: 1px solid var(--ink-4);
+  animation: none;
+  box-shadow: none;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  margin: 16px 0 18px;
+  background: var(--surface-3);
+  border-radius: 10px;
+}
+
+.auth-tab {
+  flex: 1;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink-3);
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.auth-tab[data-active='true'] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 550;
+}
+
+.auth-error {
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface-3);
+  border-left: 3px solid var(--ink);
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.auth-note {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.auth-note svg {
+  flex: none;
+  margin-top: 3px;
+  opacity: 0.55;
+}

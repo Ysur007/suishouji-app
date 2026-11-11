@@ -15,6 +15,7 @@ export function Composer() {
   const composing = useRef(false);
 
   const addMemo = useApp((s) => s.addMemo);
+  const loggedIn = useApp((s) => Boolean(s.auth));
   const folders = useApp((s) => s.folders);
   const folderList = liveFolders(folders);
   const target = targetId ? folders[targetId] : null;
@@ -167,7 +168,13 @@ export function Composer() {
           <span>
             <kbd>Enter</kbd> 记录 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 换行
           </span>
-          <span>{targetName ? `新记录将归入 ${targetName}` : '所有设备实时同步'}</span>
+          <span>
+            {targetName
+              ? `新记录将归入 ${targetName}`
+              : loggedIn
+                ? '所有设备实时同步'
+                : '仅保存在本机，登录后并入账号'}
+          </span>
         </div>
 
         <AnimatePresence>

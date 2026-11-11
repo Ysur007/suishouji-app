@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { emitOp } from './bus';
-import { debounce, idbGet, idbSet } from './idb';
+import { apiLogout, clearAuth, readAuth, writeAuth, type AuthState, type AuthUser } from './auth';
+import { emitAuthChange, emitOp } from './bus';
+import { debounce, idbDel, idbGet, idbSet } from './idb';
 import { configureClock, nextHLC, observeHLC } from './hlc';
 import type { Folder, GlyphKey, Memo, Op, Peer, SyncState, Tab, Toast, ToneKey } from './types';
 
@@ -32,7 +33,6 @@ function detectBrowser(): string {
 const LS = {
   client: 'ssj:client',
   name: 'ssj:device',
-  seq: 'ssj:seq',
   tab: 'ssj:tab',
 };
 
@@ -53,10 +53,36 @@ function bootIdentity() {
 const identity = bootIdentity();
 configureClock(identity.clientId);
 
+/* ------------------------- 账号分区 ------------------------- */
+
+export type Snapshot = { memos: Record<string, Memo>; folders: Record<string, Folder> };
+
+export const bucketOf = (auth: AuthState | null) => (auth ? `u:${auth.user.id}` : 'guest');
+export const stateKey = (bucket: string) => `state:${bucket}`;
+export const seqKey = (bucket: string) => `ssj:seq:${bucket}`;
+export const pendingKey = (bucket: string) => `pending:${bucket}`;
+
+const emptySnapshot = (): Snapshot => ({ memos: {}, folders: {} });
+
+/** 同一 id 取 hlc 更大的一方，用于「本地游客记录 ↔ 账号已有记录」的合并 */
+function mergeSnapshots(a: Snapshot, b: Snapshot): Snapshot {
+  const memos: Record<string, Memo> = { ...a.memos };
+  const folders: Record<string, Folder> = { ...a.folders };
+  for (const [id, m] of Object.entries(b.memos)) {
+    if (!memos[id] || memos[id].hlc < m.hlc) memos[id] = m;
+  }
+  for (const [id, f] of Object.entries(b.folders)) {
+    if (!folders[id] || folders[id].hlc < f.hlc) folders[id] = f;
+  }
+  return { memos, folders };
+}
+
 type Rec = Memo | Folder;
 
 interface AppState {
   ready: boolean;
+  auth: AuthState | null;
+  user: AuthUser | null;
   clientId: string;
   deviceName: string;
   platform: string;
@@ -69,6 +95,10 @@ interface AppState {
   toast: Toast | null;
 
   hydrate: () => Promise<void>;
+  signIn: (auth: AuthState) => Promise<void>;
+  signOut: () => Promise<void>;
+  expireSession: () => Promise<void>;
+
   addMemo: (input: { text: string; images?: string[]; folderId?: string | null }) => string;
   updateMemo: (id: string, patch: Partial<Pick<Memo, 'text' | 'folderId' | 'images' | 'pinned'>>) => void;
   deleteMemo: (id: string) => void;
@@ -90,8 +120,8 @@ interface AppState {
 }
 
 async function writeState() {
-  const { memos, folders } = useApp.getState();
-  await idbSet('state', { memos, folders, savedAt: Date.now() });
+  const { auth, memos, folders } = useApp.getState();
+  await idbSet(stateKey(bucketOf(auth)), { memos, folders, savedAt: Date.now() });
 }
 
 const persist = debounce(() => {
@@ -117,6 +147,8 @@ function makeOp(entity: 'memo' | 'folder', entityId: string, kind: 'put' | 'del'
 
 export const useApp = create<AppState>((set, get) => ({
   ready: false,
+  auth: null,
+  user: null,
   clientId: identity.clientId,
   deviceName: identity.deviceName,
   platform: identity.platform,
@@ -124,22 +156,101 @@ export const useApp = create<AppState>((set, get) => ({
   folders: {},
   tab: (localStorage.getItem(LS.tab) as Tab) || 'record',
   folderFilter: null,
-  sync: { status: 'connecting', peers: [], pending: 0, lastAt: 0 },
+  sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
   remoteHits: {},
   toast: null,
 
   async hydrate() {
-    const snap = await idbGet<{ memos?: Record<string, Memo>; folders?: Record<string, Folder> }>('state');
-    if (snap?.memos) {
-      set((s) => ({
-        // 本地刚产生的记录优先，其余用 IndexedDB 里的旧数据补齐
-        memos: { ...snap.memos, ...s.memos },
-        folders: { ...(snap.folders ?? {}), ...s.folders },
-        ready: true,
-      }));
-    } else {
-      set({ ready: true });
+    const auth = readAuth();
+    let snap = await idbGet<Snapshot>(stateKey(bucketOf(auth)));
+
+    // 旧版本没有账号概念，把匿名数据迁到游客分区
+    if (!snap && !auth) {
+      const legacy = await idbGet<Snapshot & { savedAt?: number }>('state');
+      if (legacy?.memos) {
+        snap = { memos: legacy.memos, folders: legacy.folders ?? {} };
+        await idbSet(stateKey('guest'), snap);
+        await idbDel('state');
+      }
     }
+
+    set({
+      auth,
+      user: auth?.user ?? null,
+      memos: snap?.memos ?? {},
+      folders: snap?.folders ?? {},
+      ready: true,
+      sync: { status: auth ? 'connecting' : 'guest', peers: [], pending: 0, lastAt: 0 },
+    });
+  },
+
+  /** 登录 / 注册成功后：合并游客记录 → 写入账号分区 → 清空游客分区 → 重放游客记录到云端 */
+  async signIn(auth) {
+    const s = get();
+    const guest: Snapshot = s.auth ? emptySnapshot() : { memos: s.memos, folders: s.folders };
+    const target = (await idbGet<Snapshot>(stateKey(bucketOf(auth)))) ?? emptySnapshot();
+    const merged = mergeSnapshots(target, guest);
+
+    writeAuth(auth);
+    set({
+      auth,
+      user: auth.user,
+      memos: merged.memos,
+      folders: merged.folders,
+      folderFilter: null,
+      remoteHits: {},
+      sync: { status: 'connecting', peers: [], pending: 0, lastAt: 0 },
+    });
+    await idbSet(stateKey(bucketOf(auth)), merged);
+    await idbSet(stateKey('guest'), emptySnapshot());
+
+    // 游客期间写的记录：按原 hlc 重放到账号，冲突交给服务端 LWW 判定
+    for (const m of Object.values(guest.memos)) emitOp(makeOp('memo', m.id, 'put', m.hlc, m));
+    for (const f of Object.values(guest.folders)) emitOp(makeOp('folder', f.id, 'put', f.hlc, f));
+
+    emitAuthChange();
+    if (Object.keys(guest.memos).length) {
+      get().notify(`已登录，${Object.keys(guest.memos).length} 条本地记录已并入账号`);
+    }
+  },
+
+  async signOut() {
+    const s = get();
+    await persistNow();
+    const token = s.auth?.token;
+    if (token) void apiLogout(token);
+    clearAuth();
+    set({
+      auth: null,
+      user: null,
+      memos: {},
+      folders: {},
+      folderFilter: null,
+      remoteHits: {},
+      sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
+    });
+    // 退出后本地从空白开始，账号内容留在服务端与该账号分区里
+    await idbSet(stateKey('guest'), emptySnapshot());
+    emitAuthChange();
+    get().notify('已退出登录，之后的记录只保存在本机');
+  },
+
+  /** token 失效：保留本地回退到游客，不做任何云端写入 */
+  async expireSession() {
+    await persistNow();
+    clearAuth();
+    set({
+      auth: null,
+      user: null,
+      memos: {},
+      folders: {},
+      folderFilter: null,
+      remoteHits: {},
+      sync: { status: 'guest', peers: [], pending: 0, lastAt: 0 },
+    });
+    await idbSet(stateKey('guest'), emptySnapshot());
+    emitAuthChange();
+    get().notify('登录已失效，已切回本地模式', 'error');
   },
 
   addMemo({ text, images = [], folderId = null }) {
@@ -227,7 +338,6 @@ export const useApp = create<AppState>((set, get) => ({
     const folderHlc = nextHLC();
     const ops: Op[] = [makeOp('folder', id, 'del', folderHlc)];
 
-    // 文件夹删除后，里面的记录回到「未分类」，而不是一起消失
     const memos = { ...get().memos };
     for (const m of Object.values(memos)) {
       if (m.folderId !== id || m.deleted) continue;
