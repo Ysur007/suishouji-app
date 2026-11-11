@@ -21,8 +21,15 @@ export default function App() {
   const prevTab = useRef<Tab>(tab);
 
   useEffect(() => {
-    void hydrate();
-    sync.start();
+    // 必须等 hydrate 把登录态读进来再连同步，否则首帧 auth 为 null 会直接进游客分支、永不重连
+    let alive = true;
+    void (async () => {
+      await hydrate();
+      if (alive) sync.start();
+    })();
+    return () => {
+      alive = false;
+    };
   }, [hydrate]);
 
   useEffect(() => {
