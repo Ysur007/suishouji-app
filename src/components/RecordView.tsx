@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { dayKey, dayLabel, greeting } from '../lib/format';
-import { folderName, liveMemos, useApp } from '../lib/store';
+import { folderName, liveMemos, memoAuthor, useApp } from '../lib/store';
 import type { Memo } from '../lib/types';
 import { useUI } from '../lib/ui';
 import { Composer } from './Composer';
@@ -19,6 +19,7 @@ export function RecordView() {
   const memos = useApp((s) => s.memos);
   const folders = useApp((s) => s.folders);
   const remoteHits = useApp((s) => s.remoteHits);
+  const clientId = useApp((s) => s.clientId);
   const setTab = useApp((s) => s.setTab);
   const openSheet = useUI((s) => s.open);
 
@@ -113,7 +114,7 @@ export function RecordView() {
                     key={item.memo.id}
                     memo={item.memo}
                     index={item.index}
-                    side={item.index % 2 === 0 ? 'them' : 'me'}
+                    side={memoAuthor(item.memo) === clientId ? 'me' : 'them'}
                     fresh={Boolean(remoteHits[item.memo.id])}
                     folderLabel={folderName(folders, item.memo.folderId)}
                     onOpen={(m) => openSheet({ kind: 'editor', memoId: m.id })}

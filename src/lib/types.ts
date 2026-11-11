@@ -3,6 +3,8 @@ export type OpKind = 'put' | 'del';
 
 export interface Memo {
   id: string;
+  /** 创建者设备 id，写入后不再变更，用于决定气泡在左还是右 */
+  authorId?: string;
   text: string;
   images: string[];
   folderId: string | null;

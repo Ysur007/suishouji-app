@@ -31,6 +31,12 @@ export function MemoBubble({ memo, index, side, fresh, folderLabel, onOpen, onMe
         delay: Math.min(index, 14) * 0.022,
       }}
     >
+      {side === 'them' && (
+        <div className="avatar" aria-hidden>
+          <BrandGlyph width={13} height={13} />
+        </div>
+      )}
+
       <div
         className={`bubble${fresh ? ' bubble--just' : ''}`}
         {...press}
@@ -92,9 +98,12 @@ export function MemoBubble({ memo, index, side, fresh, folderLabel, onOpen, onMe
       </div>
 
       <span className="row__time">{formatTime(memo.createdAt)}</span>
-      <div className="avatar" aria-hidden>
-        <BrandGlyph width={13} height={13} />
-      </div>
+
+      {side === 'me' && (
+        <div className="avatar" aria-hidden>
+          <BrandGlyph width={13} height={13} />
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -384,7 +384,7 @@
 }
 
 .row--them .row__time {
-  left: 13px;
+  left: 38px;
 }
 
 .row--me .row__time {
@@ -547,6 +547,12 @@
   width: 13px;
   height: 13px;
   opacity: 0.9;
+}
+
+/* 对方设备：黑底白记号；自己：白底黑记号。每行恰好一黑一白 */
+.row--them .avatar {
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 /* ------------------------------------------------------------------ *

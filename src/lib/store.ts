@@ -139,6 +139,7 @@ export const useApp = create<AppState>((set, get) => ({
     const hlc = nextHLC();
     const memo: Memo = {
       id,
+      authorId: get().clientId,
       text: text.trim(),
       images,
       folderId,
@@ -334,6 +335,7 @@ export const useApp = create<AppState>((set, get) => ({
       } else {
         const memo: Memo = {
           id,
+          authorId: String(raw.authorId ?? raw.hlc?.toString().split('-')[2] ?? get().clientId),
           text: String(raw.text ?? ''),
           images: Array.isArray(raw.images) ? (raw.images as string[]) : [],
           folderId: (raw.folderId as string | null) ?? null,
@@ -379,6 +381,11 @@ export function liveFolders(folders: Record<string, Folder>): Folder[] {
   return Object.values(folders)
     .filter((f) => !f.deleted)
     .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** 记录的作者设备；老数据没有 authorId 时从 hlc 尾部回退解析 */
+export function memoAuthor(memo: Memo): string {
+  return memo.authorId ?? memo.hlc.split('-')[2] ?? '';
 }
 
 export function folderName(folders: Record<string, Folder>, id: string | null | undefined): string | null {
