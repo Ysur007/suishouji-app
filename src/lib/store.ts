@@ -89,10 +89,19 @@ interface AppState {
   dismissToast: () => void;
 }
 
-const persist = debounce(() => {
+async function writeState() {
   const { memos, folders } = useApp.getState();
-  void idbSet('state', { memos, folders, savedAt: Date.now() });
+  await idbSet('state', { memos, folders, savedAt: Date.now() });
+}
+
+const persist = debounce(() => {
+  void writeState();
 }, 240);
+
+/** 立即写盘并等待完成：同步游标必须在这之后才能前进 */
+export async function persistNow(): Promise<void> {
+  await writeState();
+}
 
 function makeOp(entity: 'memo' | 'folder', entityId: string, kind: 'put' | 'del', hlc: string, data?: unknown): Op {
   return {

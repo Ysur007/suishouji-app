@@ -2,16 +2,17 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 import { FoldersView } from './components/FoldersView';
 import { RecordView } from './components/RecordView';
+import { TimelineView } from './components/TimelineView';
 import { SheetHost } from './components/SheetHost';
 import { Sidebar } from './components/Sidebar';
 import { SpaceView } from './components/SpaceView';
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
 import { sync } from './lib/sync';
-import { useApp } from './lib/store';
+import { persistNow, useApp } from './lib/store';
 import type { Tab } from './lib/types';
 
-const ORDER: Record<Tab, number> = { record: 0, space: 1, folders: 2 };
+const ORDER: Record<Tab, number> = { record: 0, timeline: 1, space: 2, folders: 3 };
 
 export default function App() {
   const tab = useApp((s) => s.tab);
@@ -53,6 +54,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  useEffect(() => {
+    const flush = () => {
+      void persistNow();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) flush();
+    });
+    return () => {
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
+
   return (
     <div className="app">
       <Sidebar />
@@ -68,6 +82,7 @@ export default function App() {
             transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
           >
             {tab === 'record' && <RecordView />}
+            {tab === 'timeline' && <TimelineView />}
             {tab === 'space' && <SpaceView />}
             {tab === 'folders' && <FoldersView />}
           </motion.div>

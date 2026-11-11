@@ -1,6 +1,6 @@
 import { onOp } from './bus';
 import { debounce, idbGet, idbSet } from './idb';
-import { LS, useApp } from './store';
+import { LS, persistNow, useApp } from './store';
 import type { Op, Peer } from './types';
 
 type ServerMessage =
@@ -168,14 +168,14 @@ class SyncClient {
       case 'sync':
       case 'ops': {
         if (msg.ops.length) app.applyOps(msg.ops);
-        this.advance(msg.seq);
+        void this.commit(msg.seq);
         app.setSync({ status: 'online', lastAt: Date.now() });
         if (msg.type === 'sync') this.flush();
         break;
       }
       case 'reset': {
         app.applySnapshot(msg.records as never);
-        this.advance(msg.seq);
+        void this.commit(msg.seq);
         this.flush();
         break;
       }
@@ -184,7 +184,7 @@ class SyncClient {
         this.inflight = this.inflight.filter((o) => !ids.has(o.id));
         this.syncPendingCount();
         this.persistPending();
-        this.advance(msg.seq);
+        void this.commit(msg.seq);
         app.setSync({ status: 'online', lastAt: Date.now(), pending: this.queue.length + this.inflight.length });
         break;
       }
@@ -195,6 +195,16 @@ class SyncClient {
       default:
         break;
     }
+  }
+
+  /** 先把记录写进 IndexedDB，成功后再推进游标，避免刷新窗口期丢数据 */
+  private async commit(seq: number) {
+    try {
+      await persistNow();
+    } catch {
+      /* 落盘失败也要继续，否则会卡住同步 */
+    }
+    this.advance(seq);
   }
 
   private advance(seq: number) {

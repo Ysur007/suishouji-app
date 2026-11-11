@@ -57,6 +57,25 @@ export function IconSend(p: P) {
   );
 }
 
+export function IconTimeline(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <path d="M7.6 4.6v14.8" />
+      <circle cx="7.6" cy="8" r="2.1" />
+      <circle cx="7.6" cy="16" r="2.1" />
+      <path d="M12.6 8h6.6M12.6 16h4.4" />
+    </svg>
+  );
+}
+
+export function IconArrowDown(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <path d="M12 5.4v13M6.8 13.2 12 18.4l5.2-5.2" />
+    </svg>
+  );
+}
+
 export function IconSearch(p: P) {
   return (
     <svg {...svgProps(p)}>

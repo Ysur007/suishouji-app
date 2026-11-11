@@ -1,15 +1,16 @@
 import { motion } from 'framer-motion';
-import { IconRecord, IconSpace } from './Icons';
+import { IconRecord, IconSpace, IconTimeline } from './Icons';
 import { useApp } from '../lib/store';
 
 export function TabBar() {
   const tab = useApp((s) => s.tab);
   const setTab = useApp((s) => s.setTab);
-  const active = tab === 'record' ? 'record' : 'space';
+  const active = tab === 'folders' ? 'space' : tab;
 
   const tabs = [
     { key: 'record' as const, label: '记录', icon: <IconRecord /> },
-    { key: 'space' as const, label: 'Space', icon: <IconSpace /> },
+    { key: 'timeline' as const, label: '时间线', icon: <IconTimeline /> },
+    { key: 'space' as const, label: '空间', icon: <IconSpace /> },
   ];
 
   return (

@@ -62,7 +62,7 @@ export interface Toast {
   tone?: 'default' | 'error';
 }
 
-export type Tab = 'record' | 'space' | 'folders';
+export type Tab = 'record' | 'timeline' | 'space' | 'folders';
 
 export const GLYPHS: GlyphKey[] = ['book', 'lines', 'spark', 'route', 'wave', 'check', 'code', 'camera'];
 export const TONES: ToneKey[] = ['sand', 'clay', 'stone', 'moss', 'ink', 'plum'];

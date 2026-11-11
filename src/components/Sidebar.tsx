@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { BrandGlyph, IconDevice, IconFolder, IconRecord, IconSpace } from './Icons';
+import { BrandGlyph, IconDevice, IconFolder, IconRecord, IconSpace, IconTimeline } from './Icons';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
 
 const PEER_COLORS = ['#0A0A0A', '#333333', '#555555', '#777777'];
@@ -57,6 +57,7 @@ export function Sidebar() {
 
   const items = [
     { key: 'record' as const, label: '记录', icon: <IconRecord />, count: memoCount },
+    { key: 'timeline' as const, label: '时间线', icon: <IconTimeline />, count: memoCount },
     { key: 'space' as const, label: '空间', icon: <IconSpace />, count: memoCount },
     { key: 'folders' as const, label: '文件夹', icon: <IconFolder />, count: folderList.length },
   ];
