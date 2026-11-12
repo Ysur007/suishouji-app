@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>随手记 · 像发消息一样记笔记，数据留在自己的机器上</title>
+<meta name="description" content="随手记是一个能自己跑起来的多端速记工具：React 前端配一个 Node 同步服务，所有记录落在同一个 JSON 文件里。不依赖云服务、数据库或对象存储。">
+<meta name="theme-color" content="#F2F2F2">
+<meta name="color-scheme" content="light">
+<meta property="og:title" content="随手记 · 像发消息一样记笔记">
+<meta property="og:description" content="多端实时同步，离线可用，备份就是拷一个文件。一条 docker 命令就能自己跑起来。">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230A0A0A'/%3E%3Cpath d='M9 10.5h14v9.2h-7.4L11.4 23v-3.3H9z' fill='none' stroke='%23fff' stroke-width='1.9' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<noscript><style>.bubble--in{opacity:1;transform:none}.js .reveal{opacity:1;transform:none}</style></noscript>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="#top" aria-label="随手记，回到顶部">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5.2 6.1h13.6v9.3h-7.3l-3.7 3v-3H5.2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="brand__name">随手记</span>
+    </a>
+    <nav class="nav__links" aria-label="页面导航">
+      <a href="#capability">能做什么</a>
+      <a href="#ui">界面</a>
+      <a href="#scenes">什么时候用</a>
+      <a href="#deploy">部署</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="nav__gh" href="https://github.com/Ysur007/suishouji-app" target="_blank" rel="noopener noreferrer">
+        GitHub
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9L9 3M9 3H4.4M9 3v4.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a class="btn btn--solid btn--sm" href="https://github.com/Ysur007/suishouji-app/releases" target="_blank" rel="noopener noreferrer">下载</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div class="rail">
+        <span class="rail__node" aria-hidden="true"></span>
+        <div class="rail__body hero__body">
+          <h1 class="hero__title">
+            <span>像发消息一样记笔记<i class="caret" aria-hidden="true"></i></span>
+            <span class="hero__title-sub">数据留在你自己的机器上</span>
+          </h1>
+
+          <div class="hero__lower">
+            <div class="hero__copy">
+              <p class="lede">React 前端配一个 Node 同步服务，所有记录落在同一个 JSON 文件里——不依赖云服务、数据库或对象存储。克隆下来，一条命令就能用。</p>
+              <div class="cta">
+                <a class="btn btn--solid" href="https://github.com/Ysur007/suishouji-app/releases" target="_blank" rel="noopener noreferrer">
+                  下载客户端
+                  <svg class="btn__arrow" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11L11 3M11 3H5M11 3v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </a>
+                <a class="btn btn--ghost" href="https://github.com/Ysur007/suishouji-app" target="_blank" rel="noopener noreferrer">看源码</a>
+              </div>
+              <p class="cta__note">Windows · Android · 浏览器。安装包在 Releases，也可以自己跑一份。</p>
+
+              <div class="runbar">
+                <span class="runbar__prompt" aria-hidden="true">$</span>
+                <code class="runbar__cmd" id="cmd">docker compose up -d</code>
+                <button class="runbar__copy" type="button" data-copy="docker compose up -d" aria-label="复制命令">
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="7" width="9" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M13 4.6H6a2 2 0 00-2 2V13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </button>
+                <span class="runbar__hint">→ localhost:8787</span>
+              </div>
+              <p class="hero__spec">单端口 8787 · 数据只落在 <code class="code-i">data/</code> 一个目录 · 没有对象存储</p>
+            </div>
+
+            <figure class="stream" aria-label="记录流示意：同一账号在两台设备上的记录">
+              <div class="stream__list" id="stream">
+                <div class="bubble bubble--them" data-b="1">
+                  <p>把首页的加载状态改成骨架屏，别再用转圈</p>
+                  <span class="tag">工作</span>
+                </div>
+                <div class="bubble bubble--me" data-b="2">
+                  <p>会议：下周三前给出同步冲突的方案</p>
+                  <span class="tag">工作</span>
+                </div>
+                <div class="bubble bubble--me" data-b="3">
+                  <p>楼下咖啡买一送一，记得带杯子</p>
+                  <span class="tag">生活</span>
+                </div>
+                <div class="bubble bubble--them" data-b="4">
+                  <p>想做一个只能写一句话的输入框，别的都藏起来</p>
+                  <span class="tag">想法</span>
+                </div>
+                <div class="bubble bubble--me bubble--in" data-b="5">
+                  <p>跑步 3 公里，配速 6′10″</p>
+                  <span class="tag">生活</span>
+                </div>
+              </div>
+              <figcaption class="stream__cap">
+                <span class="dot dot--live" aria-hidden="true"></span>
+                同一账号 · 两台设备 · 已同步
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="shot" aria-labelledby="shot-t">
+    <div class="wrap">
+      <div class="rail rail--bare">
+        <div class="rail__body">
+          <h2 class="sr-only" id="shot-t">界面截图</h2>
+          <figure class="shot__fig">
+            <img src="shots/record.webp" width="1600" height="1000" alt="随手记桌面端记录页：左侧是 64px 图标栏和 272px 视图面板，中间是按天分组的黑色聊天气泡，底部是输入框" decoding="async">
+          </figure>
+          <div class="shot__meta">
+            <p>三栏布局：侧栏 / 面板 / 内容。记录按天分组，自己写的在右，其他设备写的在左。<span class="shot__hint">左右滑动可看完整界面。</span></p>
+            <p class="shot__meta-r">未做修饰的界面截图</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="capability">
+    <div class="wrap">
+      <div class="rail">
+        <span class="rail__node" aria-hidden="true"></span>
+        <div class="rail__body">
+          <h2 class="h2">记录的成本，压到一次回车</h2>
+          <p class="sub">速记的敌人不是忘记，是"打开一个表单"。所以这里没有表单：一个输入框，按 Enter，写下的东西立刻成为一条记录。</p>
+
+          <ol class="rows">
+            <li class="row">
+              <span class="row__k">写</span>
+              <div class="row__c">
+                <h3 class="row__t">一句一句，不必组织</h3>
+                <p class="row__d">想到什么写什么。Enter 发送，Shift + Enter 换行；图片可以选、拖、粘贴，客户端先压到 1600px，单条最多 4 张。写完还能置顶、归档进文件夹、或多选后批量删。</p>
+                <p class="row__tags"><span>Enter 发送</span><span>4 张图</span><span>置顶与归档</span></p>
+              </div>
+            </li>
+            <li class="row">
+              <span class="row__k">到</span>
+              <div class="row__c">
+                <h3 class="row__t">两台设备之间，约 100ms</h3>
+                <p class="row__d">每条写入是一条带 HLC 时间戳的不可变操作，先落本机再发服务端；服务端按 op id 幂等收下，再广播给同一空间的其他连接。断网照常记，恢复后自动补发。</p>
+                <p class="row__tags"><span>离线可用</span><span>断线补发</span><span>增量同步</span></p>
+              </div>
+            </li>
+            <li class="row">
+              <span class="row__k">找</span>
+              <div class="row__c">
+                <h3 class="row__t">三个月后，还找得回来</h3>
+                <p class="row__d">整理按主题聚类、抽出一份可勾选的待办、挑出值得回看的句子；对话基于你自己的记录问答，回答下面挂着原文引用。时间线、空间、文件夹是三种不同的回顾方式。</p>
+                <p class="row__tags"><span>主题聚类</span><span>待办可勾选</span><span>答案带引用</span></p>
+              </div>
+            </li>
+            <li class="row">
+              <span class="row__k">走</span>
+              <div class="row__c">
+                <h3 class="row__t">备份就是拷一个文件</h3>
+                <p class="row__d">全部数据在 <code class="code-i">data/db.json</code>。导出可以选范围（全部 / 近 30 天 / 某个群）和来源（本机 · <span class="nw">服务端</span>）。没有导出配额，也没有"升级会员才能带走"。</p>
+                <p class="row__tags"><span>单文件存储</span><span>范围导出</span><span>Docker 部署</span></p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="try" aria-labelledby="try-t">
+    <div class="wrap">
+      <div class="rail">
+        <span class="rail__node" aria-hidden="true"></span>
+        <div class="rail__body">
+          <h2 class="h2" id="try-t">按一次回车，就是这个手感</h2>
+          <p class="sub">下面这个输入框真的能打字。写点什么，按 Enter——新的气泡从下方弹入，和真实界面里一样。</p>
+
+          <div class="try__panel">
+            <div class="try__feed" id="tryFeed" aria-live="polite" aria-label="刚才记下的内容">
+              <p class="try__empty" id="tryEmpty">还没有内容。上面那条示例不算你的。</p>
+            </div>
+            <form class="try__form" id="tryForm" autocomplete="off">
+              <label class="sr-only" for="tryInput">写一条记录</label>
+              <input class="try__input" id="tryInput" type="text" placeholder="记点什么…" maxlength="120" enterkeyhint="send">
+              <button class="try__send" type="submit" aria-label="记下这一条">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15.5V5m0 0L5.5 9.5M10 5l4.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </form>
+            <p class="try__note">这条只活在这个页面里：不写存储，不发请求。刷新就没了。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ui" id="ui" aria-labelledby="ui-t">
+    <div class="wrap">
+      <div class="rail rail--bare">
+        <div class="rail__body">
+          <h2 class="h2" id="ui-t">四个页面，一套语言</h2>
+          <p class="sub">记录 / 整理 / 对话 / 我的 是一级页面，共用同一个页头。桌面三栏，平板收掉一层，手机换成底部标签栏——不是把栏压窄，是换一个导航载体。</p>
+
+          <div class="ui__inner">
+            <div class="tabs" role="tablist" aria-label="界面预览" aria-orientation="vertical">
+              <button class="tab" role="tab" id="tab-record" aria-controls="p-record" aria-selected="true">记录</button>
+              <button class="tab" role="tab" id="tab-organize" aria-controls="p-organize" aria-selected="false" tabindex="-1">整理</button>
+              <button class="tab" role="tab" id="tab-chat" aria-controls="p-chat" aria-selected="false" tabindex="-1">对话</button>
+              <button class="tab" role="tab" id="tab-timeline" aria-controls="p-timeline" aria-selected="false" tabindex="-1">时间线</button>
+              <button class="tab" role="tab" id="tab-space" aria-controls="p-space" aria-selected="false" tabindex="-1">空间</button>
+              <button class="tab" role="tab" id="tab-folders" aria-controls="p-folders" aria-selected="false" tabindex="-1">文件夹</button>
+              <button class="tab" role="tab" id="tab-mobile" aria-controls="p-mobile" aria-selected="false" tabindex="-1">移动端</button>
+            </div>
+
+            <div class="panels">
+              <div class="panel" role="tabpanel" id="p-record" aria-labelledby="tab-record">
+                <div class="panel__scroll"><img src="shots/record.webp" width="1600" height="1000" alt="记录页：按天分组的对话流" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">记录 · 当一个聊天窗口用。往上翻超过一屏，右下角浮出「最新」，点一下平滑回到底部。</p>
+              </div>
+              <div class="panel" role="tabpanel" id="p-organize" aria-labelledby="tab-organize" hidden>
+                <div class="panel__scroll"><img src="shots/organize.webp" width="1600" height="1000" alt="整理页：统计条、一句话结论、主题卡片、待办与值得回看的句子" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">整理 · 批处理：选范围 → 生成 → 看结果，报告留在左侧历史里，可以回头比。</p>
+              </div>
+              <div class="panel" role="tabpanel" id="p-chat" aria-labelledby="tab-chat" hidden>
+                <div class="panel__scroll"><img src="shots/chat.webp" width="1600" height="1000" alt="对话页：基于自己的记录问答，回答带原文引用" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">对话 · 检索式问答，回答下面挂着可点回原文的引用。可流式输出，也可以中途停。</p>
+              </div>
+              <div class="panel" role="tabpanel" id="p-timeline" aria-labelledby="tab-timeline" hidden>
+                <div class="panel__scroll"><img src="shots/timeline.webp" width="1600" height="1000" alt="时间线视图：按时间铺开，标注间隔与序号" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">时间线 · 按时间铺开，标出隔了多久、是当天第几条、来自哪台设备。</p>
+              </div>
+              <div class="panel" role="tabpanel" id="p-space" aria-labelledby="tab-space" hidden>
+                <div class="panel__scroll"><img src="shots/space.webp" width="1600" height="1000" alt="空间视图：卡片流与全文搜索" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">空间 · 卡片流加全文搜索，适合"我记得写过，但不记得哪天"。</p>
+              </div>
+              <div class="panel" role="tabpanel" id="p-folders" aria-labelledby="tab-folders" hidden>
+                <div class="panel__scroll"><img src="shots/folders.webp" width="1600" height="1000" alt="文件夹视图：拟物图标网格" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">文件夹 · 五层 CSS 叠出厚度的拟物图标，六种色调其实是六个明度档。</p>
+              </div>
+              <div class="panel" role="tabpanel" id="p-mobile" aria-labelledby="tab-mobile" hidden>
+                <div class="panel__scroll"><img class="panel__img--phone" src="shots/mobile.webp" width="717" height="1552" alt="手机端：单列记录流与底部四个标签" loading="lazy" decoding="async"></div>
+                <p class="panel__cap">移动端 · 单列记录流，底部四个标签，长按气泡出菜单。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="scenes">
+    <div class="wrap">
+      <div class="rail">
+        <span class="rail__node" aria-hidden="true"></span>
+        <div class="rail__body">
+          <h2 class="h2">三个打开它的时刻</h2>
+          <p class="sub">它不试图成为知识库，也不做团队 Wiki。它只负责把"想到的那一秒"留下来，并在你需要的时候还给你。</p>
+
+          <div class="scenes">
+            <div class="scene">
+              <span class="scene__time">09:41<br><span>会议室</span></span>
+              <div>
+                <h3 class="scene__q">想法冒出来的那一秒</h3>
+                <p class="scene__a">手机上发一条，标签选「工作」。回到工位打开电脑，它已经在记录流里了——不用复制粘贴，不用等同步按钮转完。群里的共享也一样：发给「露营小队」，三台手机同时看见。</p>
+              </div>
+            </div>
+            <div class="scene">
+              <span class="scene__time">23:20<br><span>床上</span></span>
+              <div>
+                <h3 class="scene__q">不想起身开电脑</h3>
+                <p class="scene__a">记一句明天要做的事，锁屏。它先落在这台手机的 IndexedDB 里，网络恢复后自己补发。第二天在电脑上，它出现在昨晚那个位置，时间戳精确到分。</p>
+              </div>
+            </div>
+            <div class="scene">
+              <span class="scene__time">半年后<br><span>不记得哪天</span></span>
+              <div>
+                <h3 class="scene__q">只记得自己写过</h3>
+                <p class="scene__a">搜一个词，或者直接问"上次那个同步冲突的方案是怎么定的"。答案下面挂着原文引用，点一下就跳回那条记录——归纳必须能回到原文，否则它只是一段更漂亮的猜测。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec limits" aria-labelledby="limits-t">
+    <div class="wrap">
+      <div class="rail">
+        <span class="rail__node" aria-hidden="true"></span>
+        <div class="rail__body">
+          <div class="limits__box">
+            <h2 class="h2 h2--sm" id="limits-t">它也明确不适合一些事</h2>
+            <p class="sub sub--tight">这些不是待办清单，是设计取舍。写在这里，省得你部署完才发现。</p>
+            <ul class="limits__list">
+              <li><strong>单文件 JSON + 全量内存</strong> 适合个人和小团队。几十人同时写，该换 SQLite 或 Postgres——Op 模型不用改，只换持久化层。</li>
+              <li><strong>没有端到端加密</strong>，服务端能读到明文，<code class="code-i">data/db.json</code> 里就是原文。别把不能外泄的东西放进来。</li>
+              <li><strong>冲突粒度是整条记录的后写覆盖</strong>。两个人同一秒改同一条，会丢掉其中一次。要逐字合并得换 CRDT。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="deploy">
+    <div class="wrap">
+      <div class="rail">
+        <span class="rail__node" aria-hidden="true"></span>
+        <div class="rail__body">
+          <h2 class="h2">三条路，选最短的那条</h2>
+          <p class="sub">最快的一条是 Docker：一个服务、一个端口、一个数据目录。想改代码就走本地开发，只想用就走客户端。</p>
+
+          <div class="paths">
+            <div class="path">
+              <div class="path__h">
+                <span class="path__k">Docker</span>
+                <span class="path__n">最省事</span>
+              </div>
+              <pre class="path__code"><code>git clone https://github.com/Ysur007/suishouji-app.git
+cd suishouji-app
+docker compose up -d</code></pre>
+              <p class="path__f">数据挂在 <code class="code-i">./data</code>，升级只要 <code class="code-i">git pull &amp;&amp; docker compose up -d --build</code>。</p>
+            </div>
+            <div class="path">
+              <div class="path__h">
+                <span class="path__k">本地开发</span>
+                <span class="path__n">改代码</span>
+              </div>
+              <pre class="path__code"><code>npm install
+npm run dev</code></pre>
+              <p class="path__f">前端 5173，同步服务 8787，Vite 已把 <code class="code-i">/api</code>、<code class="code-i">/ws</code> 代理过去。</p>
+            </div>
+            <div class="path">
+              <div class="path__h">
+                <span class="path__k">客户端</span>
+                <span class="path__n">不折腾</span>
+              </div>
+              <p class="path__p">Windows 安装包把前端和服务端一起打进 exe，数据在 <code class="code-i">%APPDATA%\Suishouji</code>；Android 包把页面打包进 app，服务器地址可以随时改。</p>
+              <p class="path__f">两个包都没做代码签名：Windows 首次运行会被 SmartScreen 拦（更多信息 → 仍要运行），Android 是 debug 签名，适合自用。</p>
+            </div>
+          </div>
+
+          <div class="closing">
+            <div class="closing__c">
+              <p class="closing__h">现在把它放到你自己的机器上。</p>
+              <p class="closing__p">不需要信用卡，不需要注册账号，也不需要先看一段演示视频。一条命令之后，记录就归你了。</p>
+            </div>
+            <div class="closing__a">
+              <a class="btn btn--invert" href="https://github.com/Ysur007/suishouji-app/releases" target="_blank" rel="noopener noreferrer">
+                下载安装包
+                <svg class="btn__arrow" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 11L11 3M11 3H5M11 3v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+              <a class="btn btn--outline-invert" href="https://github.com/Ysur007/suishouji-app" target="_blank" rel="noopener noreferrer">在 GitHub 上看</a>
+            </div>
+          </div>
+          <p class="closing__note">放到公网记得套一层 HTTPS 反代（Caddy / Nginx），并把 <code class="code-i">data/</code> 当数据库对待：它里面是明文。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__in">
+      <div class="foot__brand">
+        <a class="brand" href="#top">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5.2 6.1h13.6v9.3h-7.3l-3.7 3v-3H5.2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="brand__name">随手记</span>
+        </a>
+        <p class="foot__tag">像聊天一样记录，像印刷品一样干净。</p>
+        <p class="foot__meta">数据默认留在你自己部署的那台机器上。<br>除了你自己配置的模型，没有第三方服务。</p>
+      </div>
+
+      <nav class="foot__col" aria-label="项目">
+        <h2 class="foot__h">项目</h2>
+        <a href="https://github.com/Ysur007/suishouji-app" target="_blank" rel="noopener noreferrer">源码仓库</a>
+        <a href="https://github.com/Ysur007/suishouji-app/releases" target="_blank" rel="noopener noreferrer">下载安装包</a>
+        <a href="https://github.com/Ysur007/suishouji-app/blob/main/DESIGN.md" target="_blank" rel="noopener noreferrer">设计说明</a>
+      </nav>
+
+      <nav class="foot__col" aria-label="文档">
+        <h2 class="foot__h">文档</h2>
+        <a href="https://github.com/Ysur007/suishouji-app#%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B" target="_blank" rel="noopener noreferrer">快速开始</a>
+        <a href="https://github.com/Ysur007/suishouji-app/blob/main/docs/technical-notes.md" target="_blank" rel="noopener noreferrer">技术札记</a>
+        <a href="https://github.com/Ysur007/suishouji-app#%E5%B7%B2%E7%9F%A5%E9%99%90%E5%88%B6" target="_blank" rel="noopener noreferrer">已知限制</a>
+      </nav>
+
+      <nav class="foot__col" aria-label="联系">
+        <h2 class="foot__h">联系</h2>
+        <a href="https://github.com/Ysur007/suishouji-app/issues" target="_blank" rel="noopener noreferrer">问题与建议</a>
+        <a href="https://github.com/Ysur007" target="_blank" rel="noopener noreferrer">@Ysur007</a>
+      </nav>
+    </div>
+
+    <div class="foot__bar">
+      <p>© 2026 随手记 · 由 Ysur007 维护</p>
+      <p class="foot__bar-r">界面只有黑白两级，是因为它不需要第三种颜色。</p>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js" defer></script>
+</body>
+</html>
