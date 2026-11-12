@@ -245,6 +245,44 @@ HTTPS 下前端会自动把 `ws://` 换成 `wss://`，无需改代码。
 `memo.ownerId` 是创建者的**账号** id，不是设备 id。所以同一个账号在几台设备上写的记录都显示在右侧；
 群聊里别人写的在左侧，气泡上方带 `ownerName`。没有 `ownerId` 的老记录按分区判定（个人空间里的必然是自己）。
 
+
+## 图片为什么曾经有黑边
+
+透明 PNG 从「选图」到「显示」会经过四道，任何一道把透明算成黑色，看起来都是黑边：
+
+| 环节 | 曾经的错误 | 现在的做法 |
+| --- | --- | --- |
+| 编码 | 统一 `toDataURL('image/jpeg')`，JPEG 没有 alpha，透明像素被写成 `#000` | 先检测 alpha，带透明走 WebP（不支持则 PNG），只有不透明照片才压 JPEG 并先铺白底 |
+| 检测 | 64×64 稀疏采样，图标类 PNG 的透明只在四角，容易整格落在不透明区上被误判 | 192×192 采样 + **四条边逐像素扫描**（透明图几乎总有贴边像素） |
+| 气泡 | `.row--me .bubble`（权重 0,2,0）覆盖了 `.bubble--media`（0,1,0）的 `background` / `border-color`，深色底和 1px 描边又回来了 | 选择器提到 `.row--me .bubble.bubble--media`（0,3,0），并且边框用 `border: 0` 而不是 `transparent`（transparent 仍占 1px 并参与背景裁剪） |
+| 叠层 | 新消息的 `bubbleGlow` 动画会投一圈 6px 的 `rgba(10,10,10,.08)` 阴影 | 纯图气泡 `animation: none` |
+
+另外两处细节：
+
+- 深色气泡里给图片垫了一块 **4px 浅色底板**（`padding: 4px; border-radius: 13px`），图片不再与深色直接相邻；
+  底板圆角必须 **≤ 图片圆角**，圆角越大弧线越往里收，图片四个角尖会落到弧外，反而露出深色——这就是最后一版还残留几个黑点的原因。
+- 纯图气泡 `overflow: hidden` + 图片 `border-radius: 0`，圆角只由气泡裁一次，避免两层圆角之间露底色。
+
+![无黑边](docs/screenshot-no-edge.png)
+
+### 怎么自己确认黑边没了
+
+浏览器里贴到控制台（先在页面里发一张透明 PNG）：
+
+```js
+const b = document.querySelector('.bubble--media');
+const img = b.querySelector('.bubble__img');
+const br = b.getBoundingClientRect(), ir = img.getBoundingClientRect();
+const cs = getComputedStyle(b);
+console.log('边框', cs.borderTopWidth, cs.borderTopColor, '底色', cs.backgroundColor);
+console.log('图片相对气泡的偏移', ir.x - br.x, ir.y - br.y, '尺寸差', br.width - ir.width, br.height - ir.height);
+```
+
+期望输出：`边框 0px`、`底色 rgba(0, 0, 0, 0)`、偏移与尺寸差都是 `0`。
+
+像素级判定（本仓库就是这么做验证的）：对气泡元素截图后统计亮度 `luma = 0.299R + 0.587G + 0.114B`，
+最外 3px 环带应当 **没有一个像素 luma < 80**；图片矩形向外扩 1px 的环带应当是纯浅色。
+
 ## 账号路由
 
 登录和账号管理不再挤在底部抽屉里，而是两个真正的页面：
@@ -365,7 +403,7 @@ Capacitor 壳默认把返回键交给 Activity：WebView 能回退就回退，�
 - 从编辑器里点开的图片，关掉后回到**编辑器**，不是掉回列表
 - 上传前会压一道图：**带透明的图走 WebP/PNG**（JPEG 没有 alpha 通道，透明像素会编码成黑色），
   只有不透明的照片才压 JPEG，并先铺白底
-- 纯图片记录（无文字）去掉气泡内边距与底色，图片本身就是气泡
+- 纯图片记录（无文字）去掉气泡内边距、边框与底色，图片本身就是气泡
 - 预览图按视口约束（`calc(100vw - 20px)` / `calc(100dvh - 20px)` + `object-fit: contain`），
   几乎铺满整屏只留 10px 呼吸位，横图竖图都完整可见，不会出现很厚的黑边
 

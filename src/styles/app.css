@@ -445,13 +445,25 @@
   min-height: 1px;
 }
 
+/* 图片底板。
+ *
+ * 深色气泡（自己发的那条）里，图片一旦直接贴着气泡，圆角外的四个角就是气泡的黑色，
+ * 看上去像"图片带了一圈黑边"。这里给图片垫一块贴合尺寸的浅色底板，
+ * 底板比图片大 4px，于是图片与深色之间始终隔着浅色，不再有黑角。
+ */
 .bubble__images {
   display: grid;
   gap: 4px;
   margin-top: 8px;
   grid-template-columns: 1fr;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   justify-items: end;
+  padding: 4px;
+  background: #fff;
+  /* 底板圆角必须 ≤ 图片圆角：R 越大弧线越往里收，图片四个角尖就会落到弧外，
+     反而露出气泡的深色（那正是最后残留的几点黑）。取与图片相同的 13px 刚好包住。 */
+  border-radius: 13px;
 }
 
 .bubble__images[data-count='2'] {
@@ -460,6 +472,8 @@
 
 .bubble__images[data-count='2'] {
   grid-template-columns: 1fr 1fr;
+  width: 100%;
+  justify-items: stretch;
 }
 
 .bubble__img {
@@ -471,8 +485,8 @@
   object-fit: contain;
   border-radius: 13px;
   display: block;
-  /* 自己发的气泡是黑底，透明图直接透出来会像"加了黑边"；垫一层白底，
-     透明 PNG 就落在白底上，跟原图看到的一样 */
+  /* 垫白底：带文字的气泡是深色底，透明 PNG 不垫底就会透出深色，
+     视觉上就是"图片四周一圈黑边"。纯图气泡里会覆盖回 transparent（见下）。 */
   background: #fff;
   cursor: zoom-in;
 }
@@ -2745,26 +2759,47 @@ textarea.field__input {
 }
 
 /* 纯图片的气泡：去掉内边距和底色，让图片本身当气泡，不要再套一圈黑边 */
-.bubble--media {
+/* 纯图片气泡（无文字）：图片本身就是气泡。
+ *
+ * 这里刻意用 .bubble.bubble--media 并配合 .row--me/.row--them 前缀，
+ * 因为 `.row--me .bubble`（0,2,0）会覆盖单类 `.bubble--media`（0,1,0）的横向属性：
+ * 之前 background/border-color 被它盖回去，于是自己发的纯图气泡仍带黑底，
+ * 再加上 1px 边框把图片挤进去 → 图片四周就是那圈「少量黑边」。
+ *
+ * border 用 `0` 而不是 transparent：transparent 边框仍占位并参与背景裁剪。
+ */
+.bubble.bubble--media,
+.row--me .bubble.bubble--media,
+.row--them .bubble.bubble--media {
   padding: 0;
   background: transparent;
-  border-color: transparent;
+  border: 0;
   box-shadow: none;
-  border-radius: 18px;
+  overflow: hidden;
+  border-radius: 15px;
+  /* 新消息的 bubbleGlow 会在四周投一层 6px 淡黑环，纯图气泡不需要 */
+  animation: none;
 }
 
-.bubble--media .bubble__images {
+.bubble.bubble--media .bubble__images {
   margin-top: 0;
+  gap: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  width: fit-content;
 }
 
-.bubble--media .bubble__img {
-  border-radius: 18px;
+/* 圆角交给父级 overflow: hidden 裁，图片自身不再画圆角，避免两层圆角之间露底色 */
+.bubble.bubble--media .bubble__img {
+  border-radius: 0;
+  background: transparent;
 }
 
-.bubble--media .bubble__more {
+.bubble.bubble--media .bubble__more {
   opacity: 0;
 }
 
-.bubble--media:hover .bubble__more {
+.bubble.bubble--media:hover .bubble__more {
   opacity: 1;
 }

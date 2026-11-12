@@ -56,16 +56,32 @@ export async function fileToImage(file: File): Promise<string> {
   return compressed.length < dataUrl.length ? compressed : dataUrl;
 }
 
-/** 抽样检测是否有透明像素，逐像素扫 1600px 的图太慢 */
+/**
+ * 检测是否有透明像素。
+ *
+ * 采样必须密：图标类 PNG 的透明区常常只在四个圆角（几十个像素），
+ * 64×64 的稀疏网格容易整格落在不透明区域上，误判成"不透明"→ 压成 JPEG → 四角变黑。
+ * 这里按 192×192 采样，并额外强制检查四条边（透明图几乎总有贴边像素）。
+ */
 function hasAlpha(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
   try {
     const data = ctx.getImageData(0, 0, width, height).data;
-    const stepY = Math.max(1, Math.floor(height / 64));
-    const stepX = Math.max(1, Math.floor(width / 64));
+    const at = (x: number, y: number) => data[(y * width + x) * 4 + 3];
+
+    const stepY = Math.max(1, Math.floor(height / 192));
+    const stepX = Math.max(1, Math.floor(width / 192));
     for (let y = 0; y < height; y += stepY) {
       for (let x = 0; x < width; x += stepX) {
-        if (data[(y * width + x) * 4 + 3] < 250) return true;
+        if (at(x, y) < 250) return true;
       }
+    }
+
+    // 四边逐像素扫一遍（成本可控：2×(w+h)）
+    for (let x = 0; x < width; x++) {
+      if (at(x, 0) < 250 || at(x, height - 1) < 250) return true;
+    }
+    for (let y = 0; y < height; y++) {
+      if (at(0, y) < 250 || at(width - 1, y) < 250) return true;
     }
     return false;
   } catch {
