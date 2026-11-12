@@ -5,7 +5,7 @@ import type { Memo } from '../lib/types';
 import { useUI } from '../lib/ui';
 import { Composer } from './Composer';
 import { MenuHost, useMenu } from './ContextMenu';
-import { IconFolder, IconGear, IconUsers } from './Icons';
+import { IconFolder, IconUsers } from './Icons';
 import { MemoBubble } from './MemoBubble';
 import { memoActions } from './memoActions';
 import { SyncBadge } from './SyncBadge';
@@ -107,13 +107,6 @@ export function RecordView() {
                 <IconFolder />
               </button>
             )}
-            <button
-              className="icon-btn"
-              aria-label="设置"
-              onClick={() => openSheet({ kind: 'settings' })}
-            >
-              <IconGear />
-            </button>
           </>
         }
       />

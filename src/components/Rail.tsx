@@ -8,10 +8,9 @@
  * 桌面这里也提到主队列里，两端的导航顺序才一致。
  */
 
-import { BrandGlyph, IconChat, IconGear, IconLayers, IconRecord, IconUser } from './Icons';
+import { BrandGlyph, IconChat, IconLayers, IconRecord, IconUser } from './Icons';
 import { navigate, useRoute } from '../lib/router';
 import { useApp } from '../lib/store';
-import { useUI } from '../lib/ui';
 
 const ITEMS = [
   { path: '/', label: '记录', icon: <IconRecord /> },
@@ -24,7 +23,6 @@ export function Rail() {
   const route = useRoute();
   const user = useApp((s) => s.user);
   const lastUser = useApp((s) => s.lastUser);
-  const openSheet = useUI((s) => s.open);
 
   const me = user ?? lastUser;
 
@@ -54,17 +52,6 @@ export function Rail() {
             </button>
           );
         })}
-      </div>
-
-      <div className="rail__foot">
-        <button
-          className="rail__item rail__item--quiet"
-          data-tip="设置"
-          aria-label="设置"
-          onClick={() => openSheet({ kind: 'settings' })}
-        >
-          <IconGear width={19} height={19} />
-        </button>
       </div>
     </nav>
   );

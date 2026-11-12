@@ -4,7 +4,7 @@ import { folderName, liveFolders, liveMemos, useApp } from '../lib/store';
 import type { Memo } from '../lib/types';
 import { useUI } from '../lib/ui';
 import { MenuHost, useMenu } from './ContextMenu';
-import { IconFolder, IconGear, IconMore, IconPin, IconSearch } from './Icons';
+import { IconFolder, IconMore, IconPin, IconSearch } from './Icons';
 import { memoActions } from './memoActions';
 import { SyncBadge } from './SyncBadge';
 import { Topbar } from './Topbar';
@@ -69,13 +69,6 @@ export function SpaceView() {
             <button className="text-btn" onClick={() => setTab('folders')}>
               <IconFolder />
               文件夹
-            </button>
-            <button
-              className="icon-btn"
-              aria-label="设置"
-              onClick={() => openSheet({ kind: 'settings' })}
-            >
-              <IconGear />
             </button>
           </>
         }

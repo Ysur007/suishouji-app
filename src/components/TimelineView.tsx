@@ -4,7 +4,7 @@ import { formatGap, formatSpan, formatTime, relativeTime } from '../lib/format';
 import { folderName, liveMemos, useApp } from '../lib/store';
 import { buildTimeline } from '../lib/timeline';
 import { useUI } from '../lib/ui';
-import { IconArrowDown, IconFolder, IconGear, IconImage, IconPin } from './Icons';
+import { IconArrowDown, IconFolder, IconImage, IconPin } from './Icons';
 import { SyncBadge } from './SyncBadge';
 import { Topbar } from './Topbar';
 
@@ -64,15 +64,6 @@ export function TimelineView() {
             <span style={{ opacity: 0.4 }}>·</span>
             <SyncBadge />
           </>
-        }
-        actions={
-          <button
-            className="icon-btn"
-            aria-label="设置"
-            onClick={() => openSheet({ kind: 'settings' })}
-          >
-            <IconGear />
-          </button>
         }
       />
 

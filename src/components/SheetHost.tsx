@@ -3,7 +3,6 @@ import { useUI } from '../lib/ui';
 import { Lightbox, SheetFrame } from './Sheet';
 import { MemoEditorBody } from './MemoEditor';
 import { NewFolderBody, RenameFolderBody } from './NewFolderSheet';
-import { SettingsBody } from './SettingsSheet';
 import { GroupBody, NewGroupBody } from './GroupSheet';
 import { SpacesBody } from './SpacesSheet';
 import { AiSettingsBody } from './AiSheet';
@@ -35,7 +34,6 @@ export function SheetHost() {
             {sheet.kind === 'rename-folder' && (
               <RenameFolderBody folderId={sheet.folderId} onClose={close} />
             )}
-            {sheet.kind === 'settings' && <SettingsBody onClose={close} />}
             {sheet.kind === 'new-group' && <NewGroupBody onClose={close} />}
             {sheet.kind === 'group' && <GroupBody groupId={sheet.groupId} onClose={close} />}
             {sheet.kind === 'spaces' && <SpacesBody onClose={close} />}

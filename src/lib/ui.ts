@@ -4,7 +4,6 @@ export type Sheet =
   | { kind: 'editor'; memoId: string }
   | { kind: 'new-folder' }
   | { kind: 'rename-folder'; folderId: string }
-  | { kind: 'settings' }
   | { kind: 'new-group' }
   | { kind: 'spaces' }
   | { kind: 'ai' }
