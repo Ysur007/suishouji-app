@@ -34,6 +34,7 @@ export interface OrganizeReport {
   todos: TodoItem[];
   quotes: Array<{ text: string; memoId: string }>;
   suggestion: string;
+  notice?: string;
   empty?: boolean;
 }
 

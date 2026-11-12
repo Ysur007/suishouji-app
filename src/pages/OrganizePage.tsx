@@ -199,6 +199,8 @@ function ReportView({
         <Stat n={report.overview.spanDays} label="天跨度" />
       </div>
 
+      {report.notice ? <div className="orgNotice">{report.notice}</div> : null}
+
       <motion.div
         className="orgNote"
         initial={{ opacity: 0, y: 8 }}

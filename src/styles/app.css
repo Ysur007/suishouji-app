@@ -3438,6 +3438,22 @@ textarea.field__input {
   color: var(--ink-4);
 }
 
+.orgNotice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+
 .orgNote {
   display: flex;
   gap: 10px;

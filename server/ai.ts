@@ -60,6 +60,8 @@ export interface OrganizeReport {
   todos: TodoItem[];
   quotes: Array<{ text: string; memoId: string }>;
   suggestion: string;
+  /** 模型调用失败时回退本地引擎的原因，界面要如实说明 */
+  notice?: string;
   empty?: boolean;
 }
 
@@ -688,8 +690,13 @@ ${memoDigest(memos)}`;
       overview: { ...local.overview, topics: topics.length, todos: todos.length },
       suggestion: (parsed.suggestion ?? local.suggestion).slice(0, 80),
     };
-  } catch {
-    return { ...local, model: null };
+  } catch (err) {
+    // 模型挂了不能让用户以为「模型算出来的就是这个」——回退本地并说明原因
+    return {
+      ...local,
+      model: null,
+      notice: `模型调用失败，已回退本地引擎。原因：${(err as Error).message}`,
+    };
   }
 }
 

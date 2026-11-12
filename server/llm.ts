@@ -229,21 +229,55 @@ function splitSystem(messages: ChatTurn[]) {
  * 调用
  * ------------------------------------------------------------------ */
 
+/**
+ * 把 HTTP 错误翻译成人能判断的一句话。
+ *
+ * 5xx 里 520–526 是 Cloudflare 专有的「源站异常」，和 Key、模型无关；
+ * 返回 HTML 说明请求根本没到 API（域名错、被网关拦、或者源站挂了），
+ * 这两种情况都不能把网页源码丢给用户看。
+ */
+function describeHttpError(status: number, raw: string): string {
+  const text = raw.trim();
+  const isHtml = /^<!doctype|^<html|^<head/i.test(text);
+  const title = isHtml ? (text.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? '').trim() : '';
+
+  if (status >= 520 && status <= 526) {
+    return `HTTP ${status}：网关（Cloudflare）表示源站没有正常响应。这通常不是 Key 或模型的问题——服务商那边挂了，或者在维护。可以先在浏览器打开该地址看是否同样报错，或换一个服务商。`;
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return `HTTP ${status}：上游服务暂时不可用或超时，稍后重试；持续如此就联系服务商。`;
+  }
+  if (isHtml) {
+    return `HTTP ${status}：接口返回的是网页而不是 JSON${title ? `（${title}）` : ''}。检查接口地址是否写错（是否少了 /v1），或者这个域名被网关拦截了。`;
+  }
+  if (status === 401) return `HTTP 401：API Key 无效或没有权限。检查 Key 是否填错、是否过期。`;
+  if (status === 403) return `HTTP 403：接口拒绝访问。可能是 Key 无权访问该模型，或需要开通权限。`;
+  if (status === 404) return `HTTP 404：接口地址不存在。检查 Base URL 与服务商是否匹配（OpenAI 兼容要带 /v1）。`;
+  if (status === 429) return `HTTP 429：触发限流，稍后再试或换模型。`;
+  return `HTTP ${status}：${text.replace(/\s+/g, ' ').slice(0, 160) || '（无响应体）'}`;
+}
+
 async function postJson(url: string, headers: Record<string, string>, body: unknown, timeoutMs = 45000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': 'suishouji/1.2', ...headers },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(`${res.status} ${text.replace(/\s+/g, ' ').slice(0, 180)}`);
+      throw new Error(describeHttpError(res.status, text));
     }
-    return text ? (JSON.parse(text) as Record<string, unknown>) : {};
+    if (!text) return {};
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      // 200 但返回网页：多半是域名指到了一个门户/登录页
+      throw new Error(describeHttpError(res.status, text));
+    }
   } finally {
     clearTimeout(timer);
   }
@@ -261,7 +295,7 @@ async function postStream(
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json', accept: 'text/event-stream', 'user-agent': 'suishouji/1.2', ...headers },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
