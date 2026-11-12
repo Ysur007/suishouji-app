@@ -1,6 +1,6 @@
 {
   "name": "suishouji",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "private": true,
   "type": "module",
   "description": "随手记 · 像发消息一样记笔记，多端实时同步",

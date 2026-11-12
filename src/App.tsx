@@ -64,6 +64,10 @@ export default function App() {
         e.preventDefault();
         navigate('/chat');
       }
+      if (key === '4') {
+        e.preventDefault();
+        navigate('/account');
+      }
       if (key === 'n') {
         e.preventDefault();
         navigate('/');
