@@ -197,7 +197,7 @@ JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeTyp
 
 #### 存在哪、怎么保密
 
-- **按账号存**：`DATA_DIR/ai/<userId>/ai.json`，写入时 `mode: 0o600`。A 账号填的 Key 不会出现在 B 账号的界面里，
+- **按账号存**：`DATA_DIR/ai/{userId}/ai.json`，写入时 `mode: 0o600`。A 账号填的 Key 不会出现在 B 账号的界面里，
   也不会被 B 账号的整理/对话用掉——之前是一份全局 `data/ai.json`，谁填一次所有账号都变成那个接口，这是个真 bug；
 - 读取时只回 `sk-…1234` 这样的末四位，完整 Key 不经过浏览器；
 - 清除配置 = 删掉当前账号那个文件，立刻退回本地引擎；
@@ -272,8 +272,8 @@ JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeTyp
 
 | 空间 | 谁能读写 | 用途 |
 | --- | --- | --- |
-| `u:<userId>` | 只有本人 | 个人记录，登录前的游客数据在并入后也落在这里 |
-| `g:<groupId>` | 群成员（最多 32 人） | 群共享记录，成员实时互通 |
+| `u:{userId}` | 只有本人 | 个人记录，登录前的游客数据在并入后也落在这里 |
+| `g:{groupId}` | 群成员（最多 32 人） | 群共享记录，成员实时互通 |
 
 服务端每条读取路径都先算出「当前用户可见的空间集合」，再用它过滤；写操作逐条校验目标空间是否可写，
 越权写入直接被丢弃（返回 `applied: 0`），不会报错也不会落库。
@@ -390,7 +390,7 @@ console.log('图片相对气泡的偏移', ir.x - br.x, ir.y - br.y, '尺寸差'
 | --- | --- | --- |
 | POST | `/api/auth/register` | `{username, password}` → `{token, user}`；用户名重复返回 409 |
 | POST | `/api/auth/login` | 同上，口令错误返回 401 |
-| POST | `/api/auth/logout` | 需 `Authorization: Bearer <token>`，使 token 失效 |
+| POST | `/api/auth/logout` | 需 `Authorization: Bearer {token}`，使 token 失效 |
 | GET | `/api/auth/me` | 校验 token，返回当前用户 |
 | GET | `/api/snapshot?since=N` | 需登录，只返回该用户的增量或快照 |
 | POST | `/api/ops` | 需登录，写入该用户分区 |

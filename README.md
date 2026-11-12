@@ -47,8 +47,8 @@ npm install
 npm run dev
 ```
 
-- 前端 <http://localhost:5173>（Vite 已把 `/api`、`/ws` 代理到服务端）
-- 同步服务 <http://localhost:8787>
+- 前端 [http://localhost:5173](http://localhost:5173)（Vite 已把 `/api`、`/ws` 代理到服务端）
+- 同步服务 [http://localhost:8787](http://localhost:8787)
 
 ### 生产运行
 
@@ -117,7 +117,7 @@ npm start         # 8787 单端口同时提供页面、API 与 WebSocket
 
 几个实现上的决定：
 
-- **配置按账号隔离**：存 `data/ai/<userId>/ai.json`，A 填的 Key 不会出现在 B 的界面里，也不会被 B 的整理用掉；
+- **配置按账号隔离**：存 `data/ai/{userId}/ai.json`，A 填的 Key 不会出现在 B 的界面里，也不会被 B 的整理用掉；
   旧版那份全局 `data/ai.json` 在面板里显示成「导入到当前账号」，只能被一个账号领走。
 - **密钥不下发浏览器**：读取接口只回 `sk-…1234` 这样的末四位，所有请求都在服务端发出。
 - **模型显示别名**：`trae-cn/deepseek-v4.1-flash-max` 在界面上是 `DeepSeek V4.1 Flash Max`，
@@ -137,7 +137,7 @@ npm start         # 8787 单端口同时提供页面、API 与 WebSocket
 安装包在 [Releases](https://github.com/Ysur007/suishouji-app/releases)。Windows 包未签名，
 首次运行 SmartScreen 会拦（更多信息 → 仍要运行）；Android 包是 debug 签名，适合自用。
 
-**手机连自己的电脑**：电脑 `npm start`，手机与电脑同一 Wi-Fi，浏览器打开 `http://<电脑局域网IP>:8787`，
+**手机连自己的电脑**：电脑 `npm start`，手机与电脑同一 Wi-Fi，浏览器打开 `http://电脑IP:8787`，
 登录同一个账号即可。
 
 ### 快捷键
