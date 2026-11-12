@@ -2943,6 +2943,13 @@ textarea.field__input {
   transform: scale(1.04);
 }
 
+/* 停在「我的」时，右上那个头像也要有和左侧图标一样的选中态 */
+.rail__avatar[data-active='true'] {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+
 /* ------------------------------- Panel ----------------------------- */
 
 .panel {
@@ -4719,12 +4726,13 @@ textarea.field__input {
     justify-content: flex-end;
   }
 
-  /* 标签独占剩余宽度，超长模型名走省略号而不是被切一半 */
+  /* 标签按内容宽度站左边（不要拉成一条空荡荡的长条），
+     长模型名靠 max-width + 省略号收缩，右边两个按钮靠 margin-left:auto 顶到边上 */
   .aiHead__side .engineTag {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
-    max-width: none;
-    justify-content: center;
+    max-width: calc(100% - 104px);
+    margin-right: auto;
     overflow: visible;
   }
 
@@ -4745,4 +4753,137 @@ textarea.field__input {
   .loginGate {
     max-width: none;
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * 我的（账号）页：和其他一级页面同一套骨架
+ * ------------------------------------------------------------------ */
+
+/* 这一页没有二级导航面板，把中间那一列收掉，内容区直接顶到 Rail 右边 */
+@media (min-width: 1025px) {
+  .app--noPanel {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+}
+
+.acctBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  /* 和对话页（720）· 整理页（760）同一个阅读宽度 */
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 var(--gutter) calc(20px + var(--safe-bottom));
+}
+
+.acctCard {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 15px 16px 14px;
+  box-shadow: var(--shadow-xs);
+}
+
+/* 未登录时那张卡要有存在感，但别用粗黑框抢戏 */
+.acctCard--cta {
+  border-color: var(--ink);
+}
+
+.acctCard__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-4);
+  margin-bottom: 10px;
+}
+
+.acctCard__note {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.acctCard__empty {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-4);
+}
+
+.acctCard__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.acctCard__actions .btn {
+  height: 36px;
+  font-size: 12.5px;
+}
+
+.acctCard__hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-4);
+}
+
+.acctFineprint {
+  margin: 18px 2px 4px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-4);
+}
+
+/* 账号卡片头：名字一行、说明一行，右上角一直是同步状态 */
+.acctBody .account-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.acctBody .account-head__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  font-size: 16px;
+}
+
+.acctBody .account-head__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.acctBody .account-head__name {
+  font-size: 15px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acctBody .account-head__sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.acctBody .kv {
+  padding: 4px 0 2px;
+}
+
+.acctBody .kv__row {
+  height: 32px;
 }

@@ -21,8 +21,8 @@ function hasOverlay(): boolean {
  *
  * 规则：
  *   浮层（图片预览 / 抽屉 / 菜单）→ 关掉那一层
- *   二级路由（/login、/account）→ 回应用
- *   一级页面（任何 tab、任何空间）→ 直接退到后台
+ *   二级路由（/login）→ 回应用
+ *   一级页面（记录 / 整理 / 对话 / 我的、任何空间）→ 直接退到后台
  * 一级页面之间是平级的，不应该「先回记录页再退桌面」。
  */
 export function initBackButton() {
@@ -43,8 +43,9 @@ export function initBackButton() {
         return;
       }
 
-      // 3. /login、/account 这类二级页面回到应用
-      if (location.pathname !== '/') {
+      // 3. /login 是独立页，回到应用首页
+      //    （/account 现在是一级页面，和记录 / 整理 / 对话平级，不再单独回退）
+      if (location.pathname === '/login') {
         navigate('/');
         return;
       }

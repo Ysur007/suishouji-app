@@ -97,18 +97,21 @@ export default function App() {
     };
   }, []);
 
+  // /login 是独立页；/account 是一级页面，和其他页面共用外壳（Rail / TabBar / Toast 都要在）
   if (route === '/login') return <LoginPage />;
-  if (route === '/account') return <AccountPage />;
 
   const isOrganize = route === '/organize';
   const isChat = route === '/chat';
+  const isAccount = route === '/account';
 
   return (
-    <div className="app">
+    <div className={`app${isAccount ? ' app--noPanel' : ''}`}>
       <Rail />
-      <SidePanel />
+      {isAccount ? null : <SidePanel />}
       <main className="stage">
-        {isOrganize ? (
+        {isAccount ? (
+          <AccountPage />
+        ) : isOrganize ? (
           <OrganizePage />
         ) : isChat ? (
           <ChatPage />

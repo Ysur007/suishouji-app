@@ -60,6 +60,7 @@ export function Rail() {
         </button>
         <button
           className="rail__avatar"
+          data-active={route === '/account'}
           data-tip={me ? `@${me.username}` : '登录'}
           aria-label={me ? '账号' : '登录'}
           onClick={() => navigate(user ? '/account' : '/login')}

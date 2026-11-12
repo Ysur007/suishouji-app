@@ -1,3 +1,11 @@
+/**
+ * 账号页：/account
+ *
+ * 和其他一级页面（记录 / 整理 / 对话）同一套骨架：`.aiPage` + `.aiHead` + 可滚动内容区，
+ * 底部导航由外壳统一提供。之前它是独立的 `.page` 卡片页——没有底部 Tab、标题样式不同、
+ * 卡片圆角和内边距也不一样，从「对话」切到「我的」像换了个 App。
+ */
+
 import { useMemo, useState } from 'react';
 import { navigate } from '../lib/router';
 import { apiBase, defaultApiBase, setApiBase } from '../lib/endpoint';
@@ -5,7 +13,6 @@ import { liveMemos, useApp } from '../lib/store';
 import { IconChevron, IconDevice, IconUser, IconUsers } from '../components/Icons';
 import { SyncBadge } from '../components/SyncBadge';
 
-/** 账号页：/account */
 export function AccountPage() {
   const auth = useApp((s) => s.auth);
   const user = useApp((s) => s.user);
@@ -30,25 +37,31 @@ export function AccountPage() {
   const countOf = (space: string) =>
     liveMemos(memos).filter((m) => (m.spaceId ?? viewBucket) === space).length;
 
+  const name = user ? `@${user.username}` : lastUser ? `@${lastUser.username}` : '未登录';
+
   return (
-    <div className="page page--account">
-      <header className="page__bar">
-        <button className="text-link" onClick={() => navigate('/')}>
-          ← 返回随手记
-        </button>
+    <div className="aiPage">
+      <header className="aiHead">
+        <div className="aiHead__main">
+          <h1 className="aiHead__title">
+            我的
+            <span className="aiHead__scope">{user ? '已登录' : lastUser ? '已退出' : '未登录'}</span>
+          </h1>
+          <p className="aiHead__desc">账号、设备与数据都在这一页；记录同时存在本机和服务器。</p>
+        </div>
       </header>
 
-      <div className="page__body">
+      <div className="acctBody">
         {!auth ? (
-          <section className="card card--loginCta">
-            <div className="card__label">
-              <IconUser width={14} height={14} />
+          <section className="acctCard acctCard--cta">
+            <div className="acctCard__label">
+              <IconUser width={13} height={13} />
               未登录
             </div>
-            <p className="card__note">
+            <p className="acctCard__note">
               现在写的记录只在这台设备上。登录后自动并进账号，还能多设备同步、建群共享、用 AI 整理和对话。
             </p>
-            <div className="card__actions">
+            <div className="acctCard__actions">
               <button className="btn btn--primary" onClick={() => navigate('/login?next=/account')}>
                 登录 / 注册
               </button>
@@ -56,18 +69,24 @@ export function AccountPage() {
           </section>
         ) : null}
 
-        <section className="card">
+        <section className="acctCard">
           <div className="account-head">
             <span className="account-head__avatar">
               {user ? user.username.slice(0, 1).toUpperCase() : <IconUser width={18} height={18} />}
             </span>
             <div className="account-head__main">
-              <div className="account-head__name">{user ? `@${user.username}` : lastUser ? `@${lastUser.username} · 已退出` : '未登录'}</div>
+              <div className="account-head__top">
+                <span className="account-head__name">{name}</span>
+                <SyncBadge />
+              </div>
               <div className="account-head__sub">
-                {user ? '记录绑定在此账号下，各设备自动同步' : lastUser ? '记录仍保留在本机，登录同一账号后自动补传' : '当前只写在本机，不会上传'}
+                {user
+                  ? '记录绑定在此账号下，各设备自动同步'
+                  : lastUser
+                    ? '记录仍保留在本机，登录同一账号后自动补传'
+                    : '当前只写在本机，不会上传'}
               </div>
             </div>
-            <SyncBadge />
           </div>
 
           <div className="kv">
@@ -88,7 +107,7 @@ export function AccountPage() {
             </div>
           </div>
 
-          <div className="card__actions">
+          <div className="acctCard__actions">
             {auth ? (
               <>
                 <button
@@ -111,25 +130,20 @@ export function AccountPage() {
                 </button>
               </>
             ) : (
-              <>
-                <button className="btn btn--ghost" onClick={() => navigate('/login')}>
-                  登录 / 注册
-                </button>
-                <button className="btn btn--primary" onClick={() => navigate('/')}>
-                  回到记录
-                </button>
-              </>
+              <button className="btn btn--primary" onClick={() => navigate('/login?next=/account')}>
+                登录 / 注册
+              </button>
             )}
           </div>
         </section>
 
-        <section className="card">
-          <div className="card__label">
-            <IconUsers width={14} height={14} />
+        <section className="acctCard">
+          <div className="acctCard__label">
+            <IconUsers width={13} height={13} />
             共享空间
           </div>
           {list.length === 0 ? (
-            <p className="card__empty">
+            <p className="acctCard__empty">
               {auth ? '还没有群。建一个群，把同事或家人拉进来一起记。' : '登录后可以建群，和成员共享记录。'}
             </p>
           ) : (
@@ -154,15 +168,15 @@ export function AccountPage() {
           )}
         </section>
 
-        <section className="card">
-          <div className="card__label">数据</div>
-          <p className="card__note">
+        <section className="acctCard">
+          <div className="acctCard__label">数据</div>
+          <p className="acctCard__note">
             记录同时存在本机与服务器。清除本机缓存只会删掉这台设备上的副本，云端内容不受影响；
             重新登录会重新拉取。
           </p>
-          <div className="card__actions">
+          <div className="acctCard__actions">
             <button
-              className="text-link"
+              className="btn btn--ghost"
               data-confirm={confirmClear}
               disabled={Boolean(auth)}
               onClick={() => {
@@ -179,26 +193,25 @@ export function AccountPage() {
             >
               {confirmClear ? '确认清除本机缓存' : '清除本机缓存'}
             </button>
-            {auth ? <span className="page__hint">退出登录后可清除本机缓存</span> : null}
+            {auth ? <span className="acctCard__hint">退出登录后可清除本机缓存</span> : null}
           </div>
         </section>
 
         {shellMode ? (
-          <section className="card">
-            <div className="card__label">服务器</div>
-            <p className="card__note">
+          <section className="acctCard">
+            <div className="acctCard__label">服务器</div>
+            <p className="acctCard__note">
               移动端页面打包在应用内，接口需要一个可访问的服务器地址。填你自己的部署地址，保存后会重新加载。
             </p>
-            <div className="field" style={{ marginTop: 12 }}>
-              <input
-                className="field__input"
-                value={endpoint}
-                placeholder="https://your-server.example.com"
-                onChange={(e) => setEndpoint(e.target.value)}
-              />
-            </div>
-            <div className="card__actions">
-              <button className="text-link" onClick={() => setApiBase(endpoint)}>
+            <input
+              className="field__input"
+              style={{ marginTop: 10 }}
+              value={endpoint}
+              placeholder="https://your-server.example.com"
+              onChange={(e) => setEndpoint(e.target.value)}
+            />
+            <div className="acctCard__actions">
+              <button className="btn btn--ghost" onClick={() => setApiBase(endpoint)}>
                 保存并重新加载
               </button>
               <button
@@ -208,13 +221,13 @@ export function AccountPage() {
                   location.reload();
                 }}
               >
-                恢复构建时的地址
+                恢复默认地址
               </button>
             </div>
           </section>
         ) : null}
 
-        <p className="page__fineprint">
+        <p className="acctFineprint">
           登录凭证保存在本机浏览器里；记录在服务端是可读的，没有做端到端加密。公网部署请使用 HTTPS。
         </p>
       </div>
