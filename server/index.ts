@@ -619,13 +619,23 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/export') {
     if (!user) return json(res, 401, { error: '未登录' });
+    // ?space=g:xxx | u:xxx 限定空间；?days=30 限定最近 30 天；都可以不传
+    const rawSpace = url.searchParams.get('space') ?? '';
+    const spaceId = rawSpace && rawSpace !== 'all' ? rawSpace : undefined;
+    const days = Number(url.searchParams.get('days') ?? 0) || 0;
+    const data = store.exportAll(user.id, user.username, { spaceId, days });
+    if (!data) return json(res, 403, { error: '无权导出这个空间' });
+
+    const suffix = [spaceId ? spaceId.replace(':', '-') : '', days ? `last${days}d` : '']
+      .filter(Boolean)
+      .join('-');
     res.writeHead(200, {
       'content-type': 'application/json; charset=utf-8',
-      'content-disposition': `attachment; filename="suishouji-${user.username}-${new Date()
-        .toISOString()
-        .slice(0, 10)}.json"`,
+      'content-disposition': `attachment; filename="suishouji-${user.username}${
+        suffix ? `-${suffix}` : ''
+      }-${new Date().toISOString().slice(0, 10)}.json"`,
     });
-    return res.end(JSON.stringify(store.exportAll(user.id, user.username), null, 2));
+    return res.end(JSON.stringify(data, null, 2));
   }
 
   if (pathname === '/api/ops' && req.method === 'POST') {

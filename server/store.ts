@@ -557,13 +557,41 @@ export class Store {
     return null;
   }
 
-  exportAll(userId: string, username: string) {
+  /**
+   * 整包 / 局部导出。
+   *
+   * `spaceId` 限定某个群或某个人的空间；`days` 限定最近 N 天。
+   * 文件夹是「结构」不是「内容」，按时间裁会把目录树裁断，所以时间过滤只作用在记录上。
+   * 传入无权访问的 spaceId 时返回 null，由路由层回 403。
+   */
+  exportAll(
+    userId: string,
+    username: string,
+    opts?: { spaceId?: string; days?: number },
+  ): Record<string, unknown> | null {
+    const spaces = this.spacesOf(userId);
+    const spaceId = opts?.spaceId;
+    if (spaceId && !spaces.has(spaceId)) return null;
+
+    const days = opts?.days && opts.days > 0 ? opts.days : 0;
+    const since = days ? Date.now() - days * 86400_000 : 0;
+
+    const records = Object.values(this.db.records).filter((r) => {
+      if (!spaces.has(r.spaceId)) return false;
+      if (spaceId && r.spaceId !== spaceId) return false;
+      if (!since || r.entity === 'folder') return true;
+      return Number(r.createdAt ?? r.updatedAt ?? 0) >= since;
+    });
+
+    const groups = this.groupsOf(userId).filter((g) => !spaceId || `g:${g.id}` === spaceId);
+
     return {
       version: 3,
       exportedAt: new Date().toISOString(),
       account: username,
-      groups: this.groupsOf(userId),
-      records: this.allRecords(userId),
+      scope: { spaceId: spaceId ?? 'all', days: days || null },
+      groups,
+      records,
     };
   }
 

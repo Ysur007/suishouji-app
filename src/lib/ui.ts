@@ -11,6 +11,7 @@ export type Sheet =
   | { kind: 'password' }
   | { kind: 'device' }
   | { kind: 'devices' }
+  | { kind: 'export' }
   | { kind: 'group'; groupId: string }
   | null;
 

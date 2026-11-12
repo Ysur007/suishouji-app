@@ -15,7 +15,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { apiBase, defaultApiBase, setApiBase } from '../lib/endpoint';
 import { dayLabel, relativeTime } from '../lib/format';
-import { exportLocalBackup, exportServerBackup } from '../lib/backup';
 import { navigate } from '../lib/router';
 import { liveMemos, useApp } from '../lib/store';
 import { useAi } from '../lib/aiui';
@@ -52,6 +51,7 @@ export function AccountPage() {
 
   const [confirmOut, setConfirmOut] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [endpoint, setEndpoint] = useState(() => apiBase() || defaultApiBase());
   const shellMode = Boolean(defaultApiBase()) || Boolean(apiBase());
   const fileRef = useRef<HTMLInputElement>(null);
@@ -198,7 +198,13 @@ export function AccountPage() {
             <Section
               className="sec--recent"
               title="最近记录"
-              head={recent.length ? <span className="secHead__meta">最新 {recent.length} 条</span> : undefined}
+              head={
+                recent.length ? (
+                  <button className="secHead__link" onClick={() => navigate('/')}>
+                    全部 {memoCount} 条 →
+                  </button>
+                ) : undefined
+              }
             >
               {recent.length === 0 ? (
                 <div className="row row--static">
@@ -239,10 +245,25 @@ export function AccountPage() {
               />
             </Section>
 
-            <Section className="sec--about" title="关于">
+            <Section className={aboutOpen ? 'sec--about is-open' : 'sec--about'} title="关于">
               <Row label="版本" sub="随手记 · 像发消息一样记笔记" right={`v${__APP_VERSION__}`} />
-              <Row label="数据存在哪" sub="服务器上一个 JSON 文件（data/db.json），随时可整包拷走" />
-              <Row label="安全说明" sub="凭证存本机；服务端可读，未做端到端加密；公网部署请用 HTTPS" />
+              <Row
+                className="row--extra"
+                label="数据存在哪"
+                sub="服务器上一个 JSON 文件（data/db.json），随时可整包拷走"
+              />
+              <Row
+                className="row--extra"
+                label="安全说明"
+                sub="凭证存本机；服务端可读，未做端到端加密；公网部署请用 HTTPS"
+              />
+              <Row
+                className="aboutToggle"
+                label={aboutOpen ? '收起' : '数据存在哪 / 安全说明'}
+                right={aboutOpen ? '收起' : '展开'}
+                nav={!aboutOpen}
+                onClick={() => setAboutOpen((v) => !v)}
+              />
             </Section>
           </div>
 
@@ -301,17 +322,12 @@ export function AccountPage() {
 
             <Section className="sec--data" title="数据与备份">
               <Row
-                label="导出本机备份"
-                sub={`${memoCount} 条记录 · ${folderCount} 个文件夹`}
+                label="导出备份"
+                sub={`${memoCount} 条记录 · ${folderCount} 个文件夹 · 可选范围与来源`}
                 right="导出"
                 className="acct-mobileOnly"
-                onClick={() => exportLocalBackup(memos, folders, notify)}
-              />
-              <Row
-                label="导出服务端数据"
-                sub={auth ? '整包导出账号下的记录与群' : '登录后可用'}
-                right="导出"
-                onClick={() => void exportServerBackup(notify)}
+                nav
+                onClick={() => openSheet({ kind: 'export' })}
               />
               <Row
                 label="从备份导入"

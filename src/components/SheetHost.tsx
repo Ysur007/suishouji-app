@@ -9,6 +9,7 @@ import { AiSettingsBody } from './AiSheet';
 import { ChatsBody } from './ChatsSheet';
 import { DeviceNameBody, PasswordBody } from './AccountSecurity';
 import { DevicesBody } from './DevicesSheet';
+import { ExportBody } from './ExportSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -44,6 +45,7 @@ export function SheetHost() {
             {sheet.kind === 'password' && <PasswordBody onClose={close} />}
             {sheet.kind === 'device' && <DeviceNameBody onClose={close} />}
             {sheet.kind === 'devices' && <DevicesBody onClose={close} />}
+            {sheet.kind === 'export' && <ExportBody onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

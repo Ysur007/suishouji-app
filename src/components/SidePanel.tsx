@@ -26,7 +26,6 @@ import {
   IconUsers,
 } from './Icons';
 import { SyncCard } from './SyncBadge';
-import { exportLocalBackup } from '../lib/backup';
 import { ConfirmBar } from './ConfirmBar';
 import { useAi } from '../lib/aiui';
 import { navigate, useRoute } from '../lib/router';
@@ -89,8 +88,6 @@ function AccountPanel() {
   const lastUser = useApp((s) => s.lastUser);
   const auth = useApp((s) => s.auth);
   const memos = useApp((s) => s.memos);
-  const folders = useApp((s) => s.folders);
-  const notify = useApp((s) => s.notify);
   const signOut = useApp((s) => s.signOut);
   const openSheet = useUI((s) => s.open);
 
@@ -121,8 +118,8 @@ function AccountPanel() {
           <div className="panel__label">操作</div>
           <button
             className="panel__action"
-            title="导出一份 JSON 备份到本机下载目录"
-            onClick={() => exportLocalBackup(memos, folders, notify)}
+            title="选范围后导出一份 JSON 备份"
+            onClick={() => openSheet({ kind: 'export' })}
           >
             <span className="panel__icon">
               <IconDownload />

@@ -5453,3 +5453,113 @@ textarea.field__input {
   border: 1px dashed var(--line);
   border-radius: 12px;
 }
+
+/* ------------------------------------------------------------------ *
+ * 导出备份：范围 / 来源二选一
+ *
+ * 不用原生 radio：这两处是「挑一个」而不是「填表单」，整行可点更省事，
+ * 选中用右侧对勾而不是圆点，和这个应用其它选中态（反白）区分开。
+ * ------------------------------------------------------------------ */
+
+.optGroup + .optGroup {
+  margin-top: 14px;
+}
+
+.optGroup__label {
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-4);
+}
+
+.optRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.optRow + .optRow {
+  margin-top: 7px;
+}
+
+.optRow:hover:not([disabled]) {
+  border-color: var(--line-strong);
+}
+
+.optRow[data-active='true'] {
+  border-color: var(--ink);
+  background: var(--surface-2);
+}
+
+.optRow[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.optRow__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optRow__label {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optRow__sub {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.optRow__mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.optNote {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ *
+ * 关于：手机端默认收起（读一次就够的内容不该占一屏滚动）
+ * ------------------------------------------------------------------ */
+
+.aboutToggle {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .sec--about:not(.is-open) .row--extra {
+    display: none;
+  }
+
+  .aboutToggle {
+    display: flex;
+  }
+}
