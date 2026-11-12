@@ -84,6 +84,13 @@ export interface PublicUser {
 export interface TokenRow {
   userId: string;
   createdAt: number;
+  /** 对外暴露的短 id（不下发 token 本身），用于「在线设备」列表与下线 */
+  id?: string;
+  /** 握手时上报的设备信息，老 token 可能没有 */
+  name?: string;
+  platform?: string;
+  clientId?: string;
+  lastSeenAt?: number;
 }
 
 export interface Peer {

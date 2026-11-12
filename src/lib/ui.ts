@@ -10,6 +10,7 @@ export type Sheet =
   | { kind: 'chats' }
   | { kind: 'password' }
   | { kind: 'device' }
+  | { kind: 'devices' }
   | { kind: 'group'; groupId: string }
   | null;
 

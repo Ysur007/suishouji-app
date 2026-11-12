@@ -82,6 +82,8 @@ interface SocketMeta {
   platform: string;
   connectedAt: number;
   userId: string;
+  /** 这条连接用的登录凭证（下线时按它精确断开） */
+  token: string;
   alive: boolean;
 }
 
@@ -285,6 +287,41 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+
+  // 在线设备：列出账号下所有登录凭证（只给短 id），可单独下线
+  if (pathname === '/api/devices' && req.method === 'GET') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    return json(res, 200, {
+      devices: store.devicesOf(user.id),
+      current: store.deviceIdOfToken(bearer(req) ?? ''),
+    });
+  }
+
+  if (pathname === '/api/devices/revoke' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    try {
+      const body = JSON.parse(await readBody(req, 4 * 1024)) as { id?: string };
+      const id = String(body.id ?? '');
+      if (!id) return json(res, 400, { error: '缺少设备 id' });
+      const ok = store.revokeDevice(user.id, id, bearer(req) ?? '');
+      if (!ok) return json(res, 400, { error: '这台设备不能下线（可能是当前设备）' });
+      // 只断开被下线那台的连接（同一账号的其它设备不受影响）
+      for (const client of wss.clients) {
+        const info = meta.get(client);
+        if (!info || info.userId !== user.id) continue;
+        if (store.deviceIdOfToken(info.token) !== id) continue;
+        try {
+          send(client, { type: 'unauthorized', reason: '这台设备已被下线' });
+          client.close();
+        } catch {
+          /* noop */
+        }
+      }
+      return json(res, 200, { ok: true });
+    } catch (err) {
+      return json(res, 400, { error: (err as Error).message });
+    }
+  }
 
   if (pathname.startsWith('/api/groups')) {
     if (!user) return json(res, 401, { error: '未登录' });
@@ -686,18 +723,26 @@ wss.on('connection', (ws) => {
     }
 
     if (msg.type === 'hello') {
-      const user = store.userByToken(msg.token);
+      const token = msg.token ?? '';
+      const user = store.userByToken(token);
       if (!user) {
         send(ws, { type: 'unauthorized', reason: '未登录或登录已失效' });
         return;
       }
 
+      const deviceName = msg.name || '未命名设备';
+      const devicePlatform = msg.platform || 'web';
+      const deviceClient = msg.clientId || 'anonymous';
+      // 设备信息落在 token 上，「在线设备」才说得清是哪台、也才能单独下线
+      store.touchToken(token, { name: deviceName, platform: devicePlatform, clientId: deviceClient });
+
       meta.set(ws, {
-        clientId: msg.clientId || 'anonymous',
-        name: msg.name || '未命名设备',
-        platform: msg.platform || 'web',
+        clientId: deviceClient,
+        name: deviceName,
+        platform: devicePlatform,
         connectedAt: Date.now(),
         userId: user.id,
+        token,
         alive: true,
       });
 

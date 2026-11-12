@@ -27,6 +27,7 @@ import {
 } from './Icons';
 import { SyncCard } from './SyncBadge';
 import { exportLocalBackup } from '../lib/backup';
+import { ConfirmBar } from './ConfirmBar';
 import { useAi } from '../lib/aiui';
 import { navigate, useRoute } from '../lib/router';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
@@ -145,21 +146,24 @@ function AccountPanel() {
               <button
                 className="panel__action panel__action--danger"
                 data-confirm={confirmOut}
-                onClick={() => {
-                  if (!confirmOut) {
-                    setConfirmOut(true);
-                    window.setTimeout(() => setConfirmOut(false), 4000);
-                    return;
-                  }
-                  setConfirmOut(false);
-                  void signOut();
-                }}
+                onClick={() => setConfirmOut(true)}
               >
                 <span className="panel__icon">
                   <IconLogout />
                 </span>
-                <span className="panel__name">{confirmOut ? '确认退出？' : '退出登录'}</span>
+                <span className="panel__name">退出登录</span>
               </button>
+              {confirmOut ? (
+                <ConfirmBar
+                  text="记录仍留在本机，重新登录同一账号会自动补传。"
+                  confirmLabel="退出"
+                  onConfirm={() => {
+                    setConfirmOut(false);
+                    void signOut();
+                  }}
+                  onCancel={() => setConfirmOut(false)}
+                />
+              ) : null}
             </>
           ) : (
             <button className="panel__action" onClick={() => navigate('/login?next=/account')}>

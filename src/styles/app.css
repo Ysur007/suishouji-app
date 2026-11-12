@@ -5282,3 +5282,174 @@ textarea.field__input {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * 行内确认条（危险动作）
+ *
+ * 少一次浮层打断：说明写清楚，右边给「取消 / 确认」两个对称出口。
+ * 在左面板里宽度不够，按钮改成纵向排。
+ * ------------------------------------------------------------------ */
+
+.btn--danger.btn--solid {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.btn--danger.btn--solid:hover {
+  background: #1c1c1c;
+}
+
+.confirmBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  flex-wrap: wrap;
+}
+
+.confirmBar__text {
+  flex: 1;
+  min-width: 160px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.confirmBar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.confirmBar__actions .btn {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+@media (max-width: 520px) {
+  .confirmBar__actions {
+    flex: 1;
+  }
+
+  .confirmBar__actions .btn {
+    flex: 1;
+  }
+}
+
+/* 面板里的确认条：纵向铺开，别把 272px 挤成三列 */
+.panel .confirmBar {
+  padding: 8px 8px 10px;
+  border-bottom: 0;
+  border-radius: 10px;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.panel .confirmBar__text {
+  min-width: 0;
+}
+
+.panel .confirmBar__actions {
+  margin-left: 0;
+  flex-direction: column;
+}
+
+.panel .confirmBar__actions .btn {
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------ *
+ * 在线设备
+ * ------------------------------------------------------------------ */
+
+.devices {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.devices__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.devices__row:last-child {
+  border-bottom: 0;
+}
+
+.devices__row[data-armed='true'] {
+  background: var(--surface-2);
+}
+
+.devices__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.devices__name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devices__badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 10px;
+}
+
+.devices__sub {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.devices__hint {
+  flex: none;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.devices__revokeLink {
+  flex: none;
+}
+
+.devices__confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.devices__revoke {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.devices__empty {
+  padding: 22px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-4);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}

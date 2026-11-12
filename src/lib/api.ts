@@ -18,6 +18,22 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return data;
 }
 
+export interface DeviceRow {
+  id: string;
+  name: string;
+  platform: string;
+  createdAt: number;
+  lastSeenAt: number;
+}
+
+export function fetchDevices() {
+  return call<{ devices: DeviceRow[]; current: string | null }>('/api/devices');
+}
+
+export function revokeDevice(id: string) {
+  return call<{ ok: boolean }>('/api/devices/revoke', { id });
+}
+
 export function fetchGroups() {
   return call<{ groups: Group[] }>('/api/groups');
 }

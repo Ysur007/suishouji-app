@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { apiBase, defaultApiBase, setApiBase } from '../lib/endpoint';
-import { dayLabel } from '../lib/format';
+import { dayLabel, relativeTime } from '../lib/format';
 import { exportLocalBackup, exportServerBackup } from '../lib/backup';
 import { navigate } from '../lib/router';
 import { liveMemos, useApp } from '../lib/store';
@@ -22,6 +22,7 @@ import { useAi } from '../lib/aiui';
 import { useUI } from '../lib/ui';
 import { IconChevron, IconPlus, IconUser, IconUsers } from '../components/Icons';
 import { SyncBadge } from '../components/SyncBadge';
+import { ConfirmBar } from '../components/ConfirmBar';
 
 export function AccountPage() {
   const auth = useApp((s) => s.auth);
@@ -91,21 +92,6 @@ export function AccountPage() {
     }
   };
 
-  const doClear = () => {
-    // 登录态下不能清：清了也没意义（一会又拉回来），而且容易误解成"删云端"
-    if (auth) {
-      notify('先退出登录，再清除本机缓存', 'error');
-      return;
-    }
-    if (!confirmClear) {
-      setConfirmClear(true);
-      window.setTimeout(() => setConfirmClear(false), 4000);
-      return;
-    }
-    setConfirmClear(false);
-    void clearCache();
-  };
-
   /* ---------------- 渲染 ---------------- */
 
   return (
@@ -171,6 +157,17 @@ export function AccountPage() {
                   </button>
                 )}
               </div>
+              {confirmOut ? (
+                <ConfirmBar
+                  text="退出后记录仍在本机，重新登录同一账号会自动补传；换账号则互不可见。"
+                  confirmLabel="退出登录"
+                  onConfirm={() => {
+                    setConfirmOut(false);
+                    void signOut();
+                  }}
+                  onCancel={() => setConfirmOut(false)}
+                />
+              ) : null}
             </section>
 
             <section className="sec sec--stats">
@@ -326,14 +323,28 @@ export function AccountPage() {
                 label="清除本机缓存"
                 sub={
                   auth
-                    ? '需要先退出登录：这一步只删本机副本，云端不动'
-                    : confirmClear
-                      ? '再点一次确认：只删本机副本，云端记录不受影响'
-                      : '只删这台设备上的副本，云端记录不受影响'
+                    ? '会先退出登录，再删这台设备上的副本；云端不动'
+                    : '只删这台设备上的副本，云端记录不受影响'
                 }
-                right={confirmClear ? '确认清除' : '清除'}
-                onClick={doClear}
+                right="清除"
+                onClick={() => setConfirmClear(true)}
               />
+              {confirmClear ? (
+                <ConfirmBar
+                  text={
+                    auth
+                      ? '退出登录并清除本机副本。云端记录不受影响，重新登录会重新拉取。'
+                      : '删除这台设备上的副本。云端记录不受影响，下次登录会重新拉取。'
+                  }
+                  confirmLabel={auth ? '退出并清除' : '清除'}
+                  onConfirm={async () => {
+                    setConfirmClear(false);
+                    if (auth) await signOut();
+                    await clearCache();
+                  }}
+                  onCancel={() => setConfirmClear(false)}
+                />
+              ) : null}
             </Section>
 
             <Section className="sec--device" title="本机与服务">
@@ -356,7 +367,7 @@ export function AccountPage() {
                 label="同步状态"
                 sub={
                   sync.status === 'online'
-                    ? '已连接，改动实时推送'
+                    ? `已连接，改动实时推送${sync.lastAt ? ` · 最后同步 ${relativeTime(sync.lastAt)}` : ''}`
                     : sync.status === 'connecting'
                       ? '正在连接…'
                       : sync.status === 'guest'
@@ -368,11 +379,13 @@ export function AccountPage() {
               <Row
                 label="在线设备"
                 sub={
-                  sync.peers.length > 1
-                    ? sync.peers.map((p) => p.name).join(' · ')
-                    : '只有这一台，另一台打开同一地址即可'
+                  auth
+                    ? '点开可以看是哪几台，也能把不用的那台下线'
+                    : '登录后可查看并管理已登录的设备'
                 }
                 right={`${Math.max(sync.peers.length, 1)} 台`}
+                nav
+                onClick={() => openSheet({ kind: 'devices' })}
               />
               {shellMode ? (
                 <div className="row row--stack">

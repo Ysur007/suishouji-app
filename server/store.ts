@@ -228,8 +228,76 @@ export class Store {
 
   private issueToken(userId: string): string {
     const token = crypto.randomBytes(32).toString('hex');
-    this.db.tokens[token] = { userId, createdAt: Date.now() };
+    this.db.tokens[token] = {
+      userId,
+      createdAt: Date.now(),
+      id: crypto.randomBytes(6).toString('hex'),
+    };
     return token;
+  }
+
+  /** 握手时把设备信息记到 token 上（老 token 顺手补一个 id） */
+  touchToken(token: string, info: { name: string; platform: string; clientId: string }): void {
+    const row = this.db.tokens[token];
+    if (!row) return;
+    if (!row.id) row.id = crypto.randomBytes(6).toString('hex');
+    row.name = info.name.slice(0, 40);
+    row.platform = info.platform.slice(0, 24);
+    row.clientId = info.clientId.slice(0, 40);
+    row.lastSeenAt = Date.now();
+    this.scheduleSave();
+  }
+
+  /** 在线设备列表：只给短 id，不下发 token */
+  devicesOf(userId: string): Array<{
+    id: string;
+    name: string;
+    platform: string;
+    createdAt: number;
+    lastSeenAt: number;
+  }> {
+    const out: Array<{
+      id: string;
+      name: string;
+      platform: string;
+      createdAt: number;
+      lastSeenAt: number;
+    }> = [];
+    for (const row of Object.values(this.db.tokens)) {
+      if (row.userId !== userId) continue;
+      if (!row.id) {
+        row.id = crypto.randomBytes(6).toString('hex');
+        this.scheduleSave();
+      }
+      out.push({
+        id: row.id,
+        name: row.name || '未命名设备',
+        platform: row.platform || '',
+        createdAt: row.createdAt,
+        lastSeenAt: row.lastSeenAt ?? row.createdAt,
+      });
+    }
+    return out.sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+  }
+
+  /** 某个 token 对应的对外设备 id（列表里标「本机」用） */
+  deviceIdOfToken(token: string): string | null {
+    const row = this.db.tokens[token];
+    if (!row) return null;
+    return row.id ?? null;
+  }
+
+  /** 下线某台设备；keepToken 这台不能踢（就是当前设备） */
+  revokeDevice(userId: string, deviceId: string, keepToken: string): boolean {
+    for (const [token, row] of Object.entries(this.db.tokens)) {
+      if (row.userId !== userId) continue;
+      if (row.id !== deviceId) continue;
+      if (token === keepToken) return false;
+      delete this.db.tokens[token];
+      this.scheduleSave();
+      return true;
+    }
+    return false;
   }
 
   logout(token: string) {
