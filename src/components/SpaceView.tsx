@@ -16,6 +16,7 @@ export function SpaceView() {
   const setFolderFilter = useApp((s) => s.setFolderFilter);
   const setTab = useApp((s) => s.setTab);
   const openSheet = useUI((s) => s.open);
+  const openLightbox = useUI((s) => s.openLightbox);
 
   const [query, setQuery] = useState('');
   const { menu, openMenu, closeMenu } = useMenu();
@@ -142,7 +143,7 @@ export function SpaceView() {
                   folderLabel={folderName(folders, memo.folderId)}
                   onOpen={() => openSheet({ kind: 'editor', memoId: memo.id })}
                   onMenu={(x, y) => openMenu(x, y, memo.id)}
-                  onImage={(src) => openSheet({ kind: 'lightbox', src })}
+                  onImage={(src) => openLightbox(src)}
                 />
               ))}
             </div>

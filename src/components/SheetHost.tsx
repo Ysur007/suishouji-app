@@ -10,6 +10,8 @@ import { SpacesBody } from './SpacesSheet';
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
   const close = useUI((s) => s.close);
+  const lightbox = useUI((s) => s.lightbox);
+  const closeLightbox = useUI((s) => s.closeLightbox);
 
   const key = sheet
     ? sheet.kind === 'editor'
@@ -24,7 +26,7 @@ export function SheetHost() {
   return (
     <>
       <AnimatePresence>
-        {sheet && sheet.kind !== 'lightbox' && (
+        {sheet && (
           <SheetFrame key={key} onClose={close}>
             {sheet.kind === 'editor' && <MemoEditorBody memoId={sheet.memoId} onClose={close} />}
             {sheet.kind === 'new-folder' && <NewFolderBody onClose={close} />}
@@ -38,7 +40,7 @@ export function SheetHost() {
           </SheetFrame>
         )}
       </AnimatePresence>
-      <Lightbox src={sheet?.kind === 'lightbox' ? sheet.src : null} onClose={close} />
+      <Lightbox src={lightbox} onClose={closeLightbox} />
     </>
   );
 }

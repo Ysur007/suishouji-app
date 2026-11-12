@@ -82,7 +82,7 @@ export function MemoEditorBody({ memoId, onClose }: { memoId: string; onClose: (
                   src={src}
                   alt=""
                   style={{ width: 62, height: 62, objectFit: 'cover', borderRadius: 10 }}
-                  onClick={() => useUI.getState().open({ kind: 'lightbox', src })}
+                  onClick={() => useUI.getState().openLightbox(src)}
                 />
               ))}
             </div>

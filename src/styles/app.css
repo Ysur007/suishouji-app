@@ -450,6 +450,12 @@
   gap: 4px;
   margin-top: 8px;
   grid-template-columns: 1fr;
+  width: 100%;
+  justify-items: end;
+}
+
+.bubble__images[data-count='2'] {
+  justify-items: stretch;
 }
 
 .bubble__images[data-count='2'] {
@@ -457,13 +463,21 @@
 }
 
 .bubble__img {
-  width: 100%;
+  /* 按原比例完整显示：cover 会裁掉长图内容，contain 不会；宽度交给 flex/grid 轨道 */
+  width: auto;
+  max-width: 100%;
   max-height: 300px;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   border-radius: 13px;
   display: block;
-  background: var(--surface-3);
+  /* 不垫底色——透明 PNG 的透明区就会露出气泡本身，而不是一块灰/黑 */
+  background: transparent;
   cursor: zoom-in;
+}
+
+.bubble__images[data-count='2'] .bubble__img {
+  width: 100%;
 }
 
 .bubble__tag {
@@ -1562,17 +1576,26 @@ textarea.field__input {
   position: fixed;
   inset: 0;
   z-index: 90;
-  display: grid;
-  place-items: center;
-  background: rgba(14, 12, 10, 0.82);
+  /* 用 flex 而不是 grid：grid 的 auto 轨道会按图片固有宽度撑开，导致大图溢出被裁 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 12, 10, 0.86);
   backdrop-filter: blur(10px);
-  padding: 24px;
+  padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
 }
 
 .lightbox img {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: 14px;
+  /* 用视口单位兜底：百分比 max-height 在 flex 里对超高图不一定收得住 */
+  max-width: min(100%, 92vw);
+  max-height: 86vh;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+  border-radius: 12px;
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
 }
 
@@ -2688,4 +2711,31 @@ textarea.field__input {
 
 .page__card .btn--block {
   margin-top: 6px;
+}
+
+/* 图片预览的关闭按钮 */
+.lightbox__close {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.34);
+  transition: transform 0.16s var(--ease-out), background 0.16s ease;
+}
+
+.lightbox__close:hover {
+  transform: scale(1.06);
+  background: #fff;
+}
+
+.lightbox__close svg {
+  width: 18px;
+  height: 18px;
 }

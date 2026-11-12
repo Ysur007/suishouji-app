@@ -26,6 +26,7 @@ export function RecordView() {
   const groups = useApp((s) => s.groups);
   const setTab = useApp((s) => s.setTab);
   const openSheet = useUI((s) => s.open);
+  const openLightbox = useUI((s) => s.openLightbox);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -139,7 +140,7 @@ export function RecordView() {
                     folderLabel={folderName(folders, item.memo.folderId)}
                     onOpen={(m) => openSheet({ kind: 'editor', memoId: m.id })}
                     onMenu={(x, y, m) => openMenu(x, y, m.id)}
-                    onImage={(src) => openSheet({ kind: 'lightbox', src })}
+                    onImage={(src) => openLightbox(src)}
                   />
                 ),
               )}

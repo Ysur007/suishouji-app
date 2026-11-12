@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, type ReactNode } from 'react';
+import { IconClose } from './Icons';
+import { useUI } from '../lib/ui';
 
 /**
  * 只负责「外壳 + 动画 + 关闭手势」。
@@ -8,7 +10,10 @@ import { useEffect, type ReactNode } from 'react';
 export function SheetFrame({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // 图片预览盖在上面时，Esc 只关预览，别把底下这个抽屉一起关掉
+      if (useUI.getState().lightbox) return;
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -50,16 +55,38 @@ export function SheetFrame({ onClose, children }: { onClose: () => void; childre
 }
 
 export function Lightbox({ src, onClose }: { src: string | null; onClose: () => void }) {
+  useEffect(() => {
+    if (!src) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [src, onClose]);
+
   return (
     <AnimatePresence>
       {src && (
         <motion.div
           className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="图片预览"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
+          <button
+            className="lightbox__close"
+            aria-label="关闭预览"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
+            <IconClose />
+          </button>
           <motion.img
             src={src}
             alt=""
