@@ -417,10 +417,23 @@ JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeTyp
 | --- | --- | --- |
 | GET | `/api/ai/status` | 当前引擎与模型名 |
 | POST | `/api/ai/models` | `{provider?, baseUrl?, apiKey?}` → `{models, provider, endpoint, count}` |
+| GET | `/api/memo?id=` | 单条记录（带鉴权），本机缺记录时补取 |
+| GET | `/api/records` | 全量记录（不含 op 日志），本机数据不全时对齐一次 |
 | POST | `/api/ai/organize` | `{spaceId?, days?, folderId?}` → 结构化报告 |
 | POST | `/api/ai/chat` | `{messages, spaceId?}` → `text/event-stream`，事件为 `{delta}` / `{done, refs, engine}` |
 
 两个接口都只读当前用户可见的空间，和记录一样按 `userId` / `spaceId` 过滤。
+
+#### 报告里的记录点不开？
+
+整理报告是**服务端**算的，返回的是记录 id；本机如果没同步到那条（换设备、刚在别处写成、
+同步游标出过岔子），点开就会是个空浮层。现在的处理：
+
+1. 点之前先看本机有没有，有就直接打开；
+2. 没有就 `GET /api/memo?id=` 补这一条，补到就照常打开（顺带拉一次 `/api/records` 把本机其它缺口一起对齐，每会话一次）；
+3. 服务端也取不到（真删了、无权访问），弹出提示说清楚，不再给空浮层。
+
+编辑器自身也不会再返回 `null`——记录缺失时给一句「这条记录不在这台设备上」和「知道了」。
 
 ## 群组与共享
 

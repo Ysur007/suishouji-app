@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { apiLogout, clearAuth, readAuth, writeAuth, type AuthState, type AuthUser } from './auth';
+import { fetchAllRecords, fetchMemo } from './api';
 import { emitAuthChange, emitOp } from './bus';
 import { debounce, idbDel, idbGet, idbSet } from './idb';
 import { configureClock, nextHLC, observeHLC } from './hlc';
@@ -139,6 +140,11 @@ interface AppState {
   setFolderFilter: (id: string | null) => void;
   applyOps: (ops: Op[]) => void;
   applySnapshot: (records: Array<{ id: string; entity?: string; hlc: string; deleted?: boolean } & Record<string, unknown>>) => void;
+  /**
+   * 保证某条记录在本机：缺了就从服务端补一条再返回。
+   * 整理报告是服务端算的，可能引用到本机还没同步到的记录——直接打开会是个空浮层。
+   */
+  ensureMemo: (id: string) => Promise<Memo | null>;
   setSync: (patch: Partial<SyncState>) => void;
   setPeers: (peers: Peer[]) => void;
   importData: (records: Array<Record<string, unknown>>) => number;
@@ -158,6 +164,32 @@ const persist = debounce(() => {
 /** 立即写盘并等待完成：同步游标必须在这之后才能前进 */
 export async function persistNow(): Promise<void> {
   await writeState();
+}
+
+let repairing = false;
+
+/**
+ * 把本机记录和服务端对齐一次。
+ *
+ * 正常的增量同步只补「游标之后」的 op，一旦游标或者本地快照出过岔子，缺的那些记录
+ * 就再也不会自己回来（整理报告还是会点出它们，点开就是空的）。这里直接拉全量记录做一次
+ * 合并——applySnapshot 按 HLC 取新的，不会覆盖本地更新的内容。
+ */
+async function repairOnce(): Promise<number> {
+  if (repairing || !useApp.getState().auth) return 0;
+  repairing = true;
+  try {
+    const { records } = await fetchAllRecords();
+    const before = Object.keys(useApp.getState().memos).length;
+    if (records?.length) useApp.getState().applySnapshot(records as never);
+    const added = Object.keys(useApp.getState().memos).length - before;
+    if (added > 0) useApp.getState().notify(`已从服务器补齐 ${added} 条本机缺失的记录`);
+    return added;
+  } catch {
+    return 0;
+  } finally {
+    repairing = false;
+  }
 }
 
 function makeOp(
@@ -578,10 +610,26 @@ export const useApp = create<AppState>((set, get) => ({
     persist();
   },
 
+  async ensureMemo(id) {
+    const local = get().memos[id];
+    if (local && !local.deleted) return local;
+    if (!get().auth) return null;
+    try {
+      const { memo } = await fetchMemo(id);
+      if (!memo) return null;
+      get().applySnapshot([memo as never]);
+      // 单条都缺，说明本机的数据可能不止这一条缺失：顺手对齐一次全量（每会话只做一次）
+      void repairOnce();
+      const next = get().memos[id];
+      return next && !next.deleted ? next : null;
+    } catch {
+      return null;
+    }
+  },
+
   setSync(patch) {
     set((s) => ({ sync: { ...s.sync, ...patch } }));
   },
-
   setPeers(peers) {
     set((s) => ({ sync: { ...s.sync, peers } }));
   },

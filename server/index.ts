@@ -467,6 +467,21 @@ const server = http.createServer(async (req, res) => {
 
   /* ----------------------------- 数据 ----------------------------- */
 
+  // 单条记录：整理报告里点开的记录如果本机没有（同步没补齐/换设备），用它补一条
+  if (pathname === '/api/memo' && req.method === 'GET') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    const id = (url.searchParams.get('id') ?? '').trim();
+    if (!id) return json(res, 400, { error: '缺少 id' });
+    const memo = store.findRecord(user.id, id);
+    if (!memo) return json(res, 404, { error: '记录不存在或无权访问' });
+    return json(res, 200, { memo });
+  }
+
+  // 全量记录（不含 op 日志）：本机怀疑数据不全时用来对齐一次，体积只和记录数有关
+  if (pathname === '/api/records' && req.method === 'GET') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    return json(res, 200, { seq: store.seq, records: store.allRecords(user.id) });
+  }
 
   if (pathname === '/api/snapshot') {
     if (!user) return json(res, 401, { error: '未登录' });

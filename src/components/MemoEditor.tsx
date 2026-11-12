@@ -25,7 +25,21 @@ export function MemoEditorBody({ memoId, onClose }: { memoId: string; onClose: (
     areaRef.current?.setSelectionRange(len, len);
   }, []);
 
-  if (!memo || memo.deleted) return null;
+  // 记录不在本机（已删除、或刚在别的设备写成还没同步到）：给一句话说明，
+  // 别返回 null —— 那会render成一个只有把手的空浮层，用户点了完全不知道发生了什么
+  if (!memo || memo.deleted) {
+    return (
+      <>
+        <div className="sheet__title">编辑记录</div>
+        <div className="sheet__desc">这条记录不在这台设备上，可能是已经删除，或者还没同步下来。</div>
+        <div className="sheet__actions">
+          <button className="btn btn--primary" onClick={onClose}>
+            知道了
+          </button>
+        </div>
+      </>
+    );
+  }
 
   const save = () => {
     if (!text.trim() && memo.images.length === 0) {

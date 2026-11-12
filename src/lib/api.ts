@@ -1,6 +1,6 @@
 import { readAuth } from './auth';
 import { apiUrl } from './endpoint';
-import type { Group } from './types';
+import type { Group, Memo } from './types';
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const auth = readAuth();
@@ -20,6 +20,16 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 export function fetchGroups() {
   return call<{ groups: Group[] }>('/api/groups');
+}
+
+/** 单条记录：本机没有时从服务端补取（整理报告可能引用到尚未同步全的记录） */
+export function fetchMemo(id: string) {
+  return call<{ memo: Memo }>(`/api/memo?id=${encodeURIComponent(id)}`);
+}
+
+/** 全量记录（不含 op 日志），用来把本机缺失的记录一次补齐 */
+export function fetchAllRecords() {
+  return call<{ seq: number; records: Memo[] }>('/api/records');
 }
 
 export function createGroup(name: string) {

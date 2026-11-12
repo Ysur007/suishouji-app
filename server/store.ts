@@ -447,6 +447,14 @@ export class Store {
     return Object.values(this.db.records).filter((r) => spaces.has(r.spaceId));
   }
 
+  /** 按 id 取一条记录（带鉴权）：客户端本地缺这条时用它补取 */
+  findRecord(userId: string, id: string): StoredRecord | null {
+    for (const r of Object.values(this.db.records)) {
+      if (r.id === id) return this.canAccess(userId, r.spaceId) ? r : null;
+    }
+    return null;
+  }
+
   exportAll(userId: string, username: string) {
     return {
       version: 3,

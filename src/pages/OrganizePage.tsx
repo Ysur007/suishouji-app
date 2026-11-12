@@ -31,6 +31,7 @@ export function OrganizePage() {
   const activeSpace = useApp((s) => s.activeSpace);
   const groups = useApp((s) => s.groups);
   const memos = useApp((s) => s.memos);
+  const notify = useApp((s) => s.notify);
   const openSheet = useUI((s) => s.open);
 
   const reports = useAi((s) => s.reports);
@@ -75,6 +76,30 @@ export function OrganizePage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  /**
+   * 报告里的每一条都要能落到实处。
+   *
+   * 报告是服务端算的，可能引用到本机还没同步到的记录（换设备、同步游标超前、
+   * 刚在别处写成）。以前这里直接 open，一条不在本机的记录就是个空浮层——
+   * 点了没反应、也看不出为什么。现在先补取，补不到就明说。
+   */
+  const openMemo = async (memoId: string, label: string) => {
+    if (!memoId) {
+      notify('这条没有关联到具体记录', 'error');
+      return;
+    }
+    if (memos[memoId] && !memos[memoId].deleted) {
+      openSheet({ kind: 'editor', memoId });
+      return;
+    }
+    const memo = await useApp.getState().ensureMemo(memoId);
+    if (!memo) {
+      notify(`「${label.slice(0, 12)}」对应的记录取不到——可能已删除，或这条不是本机同步过的`, 'error');
+      return;
+    }
+    openSheet({ kind: 'editor', memoId });
   };
 
   return (
@@ -136,7 +161,7 @@ export function OrganizePage() {
       <div className="orgBody">
         {error ? <div className="orgError">{error}</div> : null}
 
-        {busy ? <Skeleton /> : report ? <ReportView report={report} onOpen={openSheet} /> : <Intro count={localCount} />}
+        {busy ? <Skeleton /> : report ? <ReportView report={report} onOpen={openMemo} /> : <Intro count={localCount} />}
       </div>
     </div>
   );
@@ -176,7 +201,7 @@ function ReportView({
   onOpen,
 }: {
   report: OrganizeReport;
-  onOpen: (sheet: { kind: 'editor'; memoId: string }) => void;
+  onOpen: (memoId: string, label: string) => void;
 }) {
   const memos = useApp((s) => s.memos);
   const total = report.overview.total;
@@ -266,7 +291,7 @@ function ReportView({
                     <button
                       key={m.id}
                       className="pick"
-                      onClick={() => onOpen({ kind: 'editor', memoId: m.id })}
+                      onClick={() => void onOpen(m.id, m.text)}
                     >
                       <span className="pick__date">{dayLabel(m.createdAt)}</span>
                       <span className="pick__text">
@@ -293,7 +318,7 @@ function ReportView({
               <button
                 key={`${t.memoId}-${t.text.slice(0, 8)}`}
                 className="todo"
-                onClick={() => t.memoId && onOpen({ kind: 'editor', memoId: t.memoId })}
+                onClick={() => void onOpen(t.memoId, t.text)}
               >
                 <span className="todo__box" aria-hidden />
                 <span className="todo__text">{t.text}</span>
@@ -314,7 +339,7 @@ function ReportView({
               <button
                 key={`${q.memoId}-q`}
                 className="quote"
-                onClick={() => onOpen({ kind: 'editor', memoId: q.memoId })}
+                onClick={() => void onOpen(q.memoId, q.text)}
               >
                 {q.text}
               </button>
