@@ -53,10 +53,12 @@ export function ChatPage() {
     void refreshStatus();
   }, [refreshStatus]);
 
-  // 首次进入没有会话就建一个空的，输入框不会落在「无归属」状态
+  // 没有会话就补一个空的。
+  // 注意要跟着 chatId 走：bucket 从「游客」切到账号时 load() 会把 chatId 置空，
+  // 只在挂载时跑一次的话，之后第一条消息会落在「没有会话」的状态里被丢掉。
   useEffect(() => {
-    if (!useAi.getState().chatId) newChat();
-  }, [newChat]);
+    if (!chatId) newChat();
+  }, [chatId, newChat]);
 
   useEffect(() => {
     const session = useAi.getState().chats.find((c) => c.id === chatId);
@@ -94,7 +96,12 @@ export function ChatPage() {
     setBusy(true);
 
     const history: ChatTurn[] = [...turnsRef.current, { role: 'user', content: text }];
-    apply(() => [...history, { role: 'assistant', content: '' }]);
+    const pending: ChatTurn[] = [...history, { role: 'assistant', content: '' }];
+    // 先落 store：新建会话会让 chatId 变化，effect 会按 store 里的 turns 覆盖本地状态，
+    // 不先写进去的话，刚发的那句会被空 turns 冲掉（表现为「发出去没反应」）
+    setStoredTurns(id, pending);
+    turnsRef.current = pending;
+    setTurns(pending);
 
     abortRef.current = chatStream(
       {
