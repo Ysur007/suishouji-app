@@ -1580,16 +1580,19 @@ textarea.field__input {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(14, 12, 10, 0.86);
+  background: rgba(14, 12, 10, 0.9);
   backdrop-filter: blur(10px);
-  padding: max(20px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
+  /* 只留 10px 呼吸位，图片尽可能铺满，避免四周一圈很厚的"黑边" */
+  padding: 10px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   overscroll-behavior: contain;
 }
 
 .lightbox img {
   /* 用视口单位兜底：百分比 max-height 在 flex 里对超高图不一定收得住 */
-  max-width: min(100%, 92vw);
-  max-height: 86vh;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100dvh - 20px);
   width: auto;
   height: auto;
   min-width: 0;

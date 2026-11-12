@@ -363,7 +363,8 @@ Capacitor 壳默认把返回键交给 Activity：WebView 能回退就回退，�
 
 - 右上角有明确的关闭按钮，也支持点背景、按 Esc、按返回键关闭
 - 从编辑器里点开的图片，关掉后回到**编辑器**，不是掉回列表
-- 预览图按视口约束（`max-width: 92vw` / `max-height: 86vh` + `object-fit: contain`），横图竖图都完整可见
+- 预览图按视口约束（`calc(100vw - 20px)` / `calc(100dvh - 20px)` + `object-fit: contain`），
+  几乎铺满整屏只留 10px 呼吸位，横图竖图都完整可见，不会出现很厚的黑边
 
 
 
