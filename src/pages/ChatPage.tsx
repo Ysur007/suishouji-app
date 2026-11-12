@@ -8,7 +8,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { aiStatus, chatStream, type AiStatus, type ChatRef, type ChatTurn } from '../lib/ai';
+import { chatStream, type ChatRef, type ChatTurn } from '../lib/ai';
+import { EngineTag } from '../components/EngineTag';
 import { useAi } from '../lib/aiui';
 import { liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
@@ -36,7 +37,6 @@ export function ChatPage() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [remote, setRemote] = useState<AiStatus | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
   const turnsRef = useRef<ChatTurn[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -45,11 +45,11 @@ export function ChatPage() {
     load(bucket);
   }, [bucket, load]);
 
+  const refreshStatus = useAi((s) => s.refreshStatus);
+
   useEffect(() => {
-    aiStatus()
-      .then(setRemote)
-      .catch(() => setRemote(null));
-  }, []);
+    void refreshStatus();
+  }, [refreshStatus]);
 
   // 首次进入没有会话就建一个空的，输入框不会落在「无归属」状态
   useEffect(() => {
@@ -149,10 +149,7 @@ export function ChatPage() {
           </p>
         </div>
         <div className="aiHead__side">
-          <span className="engineTag" data-engine={remote?.engine ?? 'local'}>
-            <i />
-            {remote?.engine === 'llm' ? `模型 · ${remote.model ?? '默认'}` : '本地分析'}
-          </span>
+          <EngineTag />
           <button className="icon-btn icon-btn--bordered" aria-label="新对话" onClick={() => newChat()}>
             <IconPlus width={17} height={17} />
           </button>

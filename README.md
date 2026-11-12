@@ -293,6 +293,68 @@ HTTPS 下前端会自动把 `ws://` 换成 `wss://`，无需改代码。
 
 界面右上角的引擎标签会如实显示当前是哪一种，回答末尾也会说明「这是本地检索式回答，没有调用大模型」。
 
+### 配置模型接入
+
+三处入口，改的是同一份配置：
+
+| 入口 | 位置 |
+| --- | --- |
+| 整理页 | 右上角引擎标签（`本地分析` / `模型 · xxx` / `未就绪 · 去配置`），点一下打开 |
+| 对话页 | 同上，右上角 |
+| 设置面板 | 「AI」区块 → 配置 |
+
+也可以用环境变量（见上面的环境变量表）。**界面保存的配置优先于环境变量**——否则用户点了保存却没生效。
+
+![AI 接入](docs/screenshot-ai-config.png)
+
+#### 配置项
+
+| 字段 | 说明 | 默认 |
+| --- | --- | --- |
+| 服务商 | 自动 / OpenAI 兼容 / Anthropic / Gemini | 自动 |
+| 接口地址 | 只填到版本号，路径由服务端补 | 按服务商取默认值 |
+| 模型 | 模型名，原样传给服务商 | `gpt-4o-mini` |
+| API Key | 只存在服务端，前端只回显末四位 | 空 |
+| 最大 tokens | 单次回答上限，默认 1024 | 1024 |
+
+#### 兼容的接口规范
+
+| 服务商 | 端点 | 鉴权 | 流式 | 典型服务 |
+| --- | --- | --- | --- | --- |
+| `openai` | `POST {base}/v1/chat/completions` | `Authorization: Bearer` | `choices[].delta` | OpenAI、DeepSeek、Kimi、通义、OpenRouter、Ollama、vLLM、OneAPI / New API |
+| `anthropic` | `POST {base}/v1/messages` | `x-api-key` + `anthropic-version` | `content_block_delta` | Claude 官方与兼容网关 |
+| `gemini` | `POST {base}/v1beta/models/{model}:generateContent?key=` | 查询参数 `key` | `alt=sse` | Google AI Studio |
+
+各协议的差异都在 `server/llm.ts` 里消化掉了：system 消息在 Anthropic 里单独成字段、Gemini 的 `contents[].parts[]` 结构、
+JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeType`）各自适配。
+
+#### 服务商是怎么识别的
+
+1. **显式指定**优先：下拉框选了具体服务商就按它走；
+2. 否则**按地址特征匹配**：含 `anthropic` → Anthropic；含 `generativelanguage` 或 `gemini` → Gemini；
+3. 其余一律按 **OpenAI 兼容**处理。
+
+第 3 条是刻意的：绝大多数网关（含自建）都是 OpenAI 兼容，认错时的代价也最小——只是路径不同，用户改一下地址即可。
+路径补全同样有兜底：地址已含 `/chat/completions` 就直接用，含 `/v1` 就补后半段，两者都没有就补 `/v1/chat/completions`。
+
+#### 存在哪、怎么保密
+
+- 落在 `DATA_DIR/ai.json`，写入时 `mode: 0o600`；
+- 读取时只回 `sk-…1234` 这样的末四位，完整 Key 不经过浏览器；
+- 清除配置 = 删掉这个文件，立刻退回本地引擎。
+
+#### 排查「not found」
+
+`/api/ai/organize` 返回 `404 {"error":"not found"}` **不是配置问题**，而是请求没匹配到任何路由：
+
+- 服务端进程还是旧代码（路由是后来才加的），`tsx` 不会热重载 → 重启服务即可；
+- 反向代理只转发了部分 `/api/*` 路径 → 检查代理规则；
+- `npm run build` 之后没重启，前端是新的、后端是旧的。
+
+界面现在会把这类错误翻成人话（见 `friendlyError`）：404 提示重启、401 提示 Key 无效、429 提示限流，
+不再把服务端原文直接抛给用户。引擎标签也会在接口不可用时显示「未就绪 · 去配置」，而不是假装本地分析可用。
+
+
 ## AI 对话
 
 ![对话](docs/screenshot-chat.png)

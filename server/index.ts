@@ -6,14 +6,24 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Store } from './store.js';
 import type { ClientMessage, Op, Peer, ServerMessage } from './types.js';
 import {
-  aiConfig,
   chatLocal,
-  chatWithLlm,
+  hasKey,
   organizeLocal,
   organizeWithLlm,
   type AiMemo,
   type ChatMessage,
 } from './ai.js';
+import {
+  chatStreamText,
+  clearConfig,
+  loadConfig,
+  probe,
+  publicConfig,
+  resolveProvider,
+  saveConfig,
+  statusOf,
+  type Provider,
+} from './llm.js';
 
 // 三种运行形态：tsx 直跑（ESM）、Docker/Node（ESM）、Electron（esbuild 打成 CJS）
 const HERE =
@@ -170,7 +180,7 @@ const server = http.createServer(async (req, res) => {
       records: store.recordCount,
       users: store.userCount,
       groups: store.groupCount,
-      ai: aiConfig().engine,
+      ai: hasKey(DATA_DIR) ? 'llm' : 'local',
       clients: [...wss.clients].filter((c) => c.readyState === WebSocket.OPEN).length,
       uptime: Math.round((Date.now() - startedAt) / 1000),
     });
@@ -284,8 +294,59 @@ const server = http.createServer(async (req, res) => {
   /* ----------------------------- AI ----------------------------- */
 
   if (pathname === '/api/ai/status' && req.method === 'GET') {
-    const cfg = aiConfig();
-    return json(res, 200, { engine: cfg.engine, model: cfg.engine === 'llm' ? cfg.model : null });
+    const st = statusOf(DATA_DIR);
+    return json(res, 200, {
+      engine: st.configured ? 'llm' : 'local',
+      configured: st.configured,
+      provider: st.provider,
+      resolved: st.resolved,
+      baseUrl: st.baseUrl,
+      model: st.model,
+      keyHint: st.keyHint,
+      source: st.source,
+    });
+  }
+
+  // AI 接入配置：读写都在服务端，key 不下发到前端（只回显末四位）
+  if (pathname === '/api/ai/config') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    if (req.method === 'GET') return json(res, 200, { config: publicConfig(DATA_DIR) });
+    if (req.method === 'POST') {
+      try {
+        const body = JSON.parse(await readBody(req, 32 * 1024)) as {
+          provider?: Provider;
+          baseUrl?: string;
+          apiKey?: string;
+          model?: string;
+          maxTokens?: number;
+          clear?: boolean;
+        };
+        if (body.clear) {
+          clearConfig(DATA_DIR);
+          return json(res, 200, { config: publicConfig(DATA_DIR), engine: hasKey(DATA_DIR) ? 'llm' : 'local' });
+        }
+        const next = saveConfig(DATA_DIR, {
+          provider: body.provider,
+          baseUrl: typeof body.baseUrl === 'string' ? body.baseUrl : undefined,
+          apiKey: typeof body.apiKey === 'string' ? body.apiKey : undefined,
+          model: typeof body.model === 'string' ? body.model : undefined,
+          maxTokens: body.maxTokens,
+        });
+        return json(res, 200, {
+          config: publicConfig(DATA_DIR),
+          resolved: resolveProvider(next),
+          engine: next.apiKey ? 'llm' : 'local',
+        });
+      } catch (err) {
+        return json(res, 400, { error: (err as Error).message });
+      }
+    }
+  }
+
+  if (pathname === '/api/ai/config/test' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    const result = await probe(DATA_DIR);
+    return json(res, 200, result);
   }
 
   if (pathname === '/api/ai/organize' && req.method === 'POST') {
@@ -304,10 +365,9 @@ const server = http.createServer(async (req, res) => {
       });
       const label =
         days && days > 0 ? `最近 ${days} 天` : body.spaceId && body.spaceId.startsWith('g:') ? '群共享' : '全部记录';
-      const report =
-        aiConfig().engine === 'llm'
-          ? await organizeWithLlm(memos, label, days && days > 0 ? days : null)
-          : organizeLocal(memos, label, days && days > 0 ? days : null);
+      const report = hasKey(DATA_DIR)
+        ? await organizeWithLlm(DATA_DIR, memos, label, days && days > 0 ? days : null)
+        : organizeLocal(memos, label, days && days > 0 ? days : null);
       return json(res, 200, { report });
     } catch (err) {
       return json(res, 400, { error: (err as Error).message });
@@ -339,20 +399,44 @@ const server = http.createServer(async (req, res) => {
       'x-accel-buffering': 'no',
     });
     const emit = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    const emitDelta = (text: string) => emit({ delta: text });
 
     try {
       const memos = memosFor(user.id, { spaceId: body.spaceId });
-      const cfg = aiConfig();
-      const result =
-        cfg.engine === 'llm' ? await chatWithLlm(memos, messages) : chatLocal(memos, messages);
+      const cfg = loadConfig(DATA_DIR);
 
-      // 逐段吐字：本地引擎也算好了，这里只是让阅读节奏像对话
-      const chunks = result.answer.match(/[^\n]{1,18}\n?|[\n]/g) ?? [result.answer];
-      for (const chunk of chunks) {
-        emit({ delta: chunk });
-        await new Promise((r) => setTimeout(r, 16));
+      if (cfg.apiKey) {
+        // 模型路径：边收边转，前端拿到的就是真实增量
+        const refs = (await import('./ai.js')).retrieve(memos, messages[messages.length - 1]?.content ?? '', 6).map(
+          (m) => ({ id: m.id, text: m.text.slice(0, 40), createdAt: m.createdAt }),
+        );
+        const context = memos
+          .slice(0, 120)
+          .map((m, i) => `${i + 1}. [${new Date(m.createdAt).toLocaleDateString('zh-CN')}] ${m.text.replace(/\s+/g, ' ').slice(0, 160)}`)
+          .join('\n');
+        await chatStreamText(
+          DATA_DIR,
+          [
+            {
+              role: 'system',
+              content: `你是用户私人笔记的助手。只根据下面这些记录回答，记录里没有的就直说没有，不要编造。
+回答用中文，简洁，必要时分点。引用记录时写「（见 N 月 N 日那条）」。\n\n用户的相关记录：\n${context}`,
+            },
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+          ],
+          emitDelta,
+        );
+        emit({ done: true, refs, engine: 'llm', model: cfg.model });
+      } else {
+        const result = chatLocal(memos, messages);
+        // 本地引擎一次算完，这里按节奏吐出来，让阅读像对话
+        const chunks = result.answer.match(/[^\n]{1,18}\n?|[\n]/g) ?? [result.answer];
+        for (const chunk of chunks) {
+          emit({ delta: chunk });
+          await new Promise((r) => setTimeout(r, 16));
+        }
+        emit({ done: true, refs: result.refs, engine: 'local', model: null });
       }
-      emit({ done: true, refs: result.refs, engine: cfg.engine, model: cfg.engine === 'llm' ? cfg.model : null });
     } catch (err) {
       emit({ error: (err as Error).message });
     }

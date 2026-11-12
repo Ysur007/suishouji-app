@@ -7,7 +7,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { aiStatus, organize, type AiStatus, type OrganizeReport } from '../lib/ai';
+import { friendlyError, organize, type OrganizeReport } from '../lib/ai';
+import { EngineTag } from '../components/EngineTag';
 import { useAi } from '../lib/aiui';
 import { liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
@@ -41,17 +42,16 @@ export function OrganizePage() {
   const [error, setError] = useState<string | null>(null);
   const [scope, setScope] = useState<'space' | 'all'>('space');
   const [days, setDays] = useState<number | null>(30);
-  const [remote, setRemote] = useState<AiStatus | null>(null);
 
   useEffect(() => {
     load(bucket);
   }, [bucket, load]);
 
+  const refreshStatus = useAi((s) => s.refreshStatus);
+
   useEffect(() => {
-    aiStatus()
-      .then(setRemote)
-      .catch(() => setRemote(null));
-  }, []);
+    void refreshStatus();
+  }, [refreshStatus]);
 
   const report: OrganizeReport | null = useMemo(
     () => reports.find((r) => r.id === reportId) ?? null,
@@ -71,7 +71,7 @@ export function OrganizePage() {
       });
       setReport(next);
     } catch (err) {
-      setError((err as Error).message);
+      setError(friendlyError((err as Error).message));
     } finally {
       setBusy(false);
     }
@@ -87,10 +87,7 @@ export function OrganizePage() {
           </p>
         </div>
         <div className="aiHead__side">
-          <span className="engineTag" data-engine={remote?.engine ?? 'local'}>
-            <i />
-            {remote?.engine === 'llm' ? `模型 · ${remote.model ?? '默认'}` : '本地分析'}
-          </span>
+          <EngineTag />
         </div>
       </header>
 

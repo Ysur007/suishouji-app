@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand';
-import type { ChatTurn, OrganizeReport } from './ai';
+import { aiStatus, type AiStatus, type ChatTurn, type OrganizeReport } from './ai';
 import {
   loadChats,
   loadReports,
@@ -24,6 +24,10 @@ interface AiState {
   reportId: string | null;
   chats: ChatSession[];
   chatId: string | null;
+  /** 服务端 AI 状态：null 表示还没取到（或接口不存在） */
+  status: AiStatus | null;
+  statusError: string | null;
+  refreshStatus: () => Promise<void>;
 
   load: (bucket: string) => void;
   selectReport: (id: string | null) => void;
@@ -42,6 +46,18 @@ export const useAi = create<AiState>((set, get) => ({
   reportId: null,
   chats: [],
   chatId: null,
+  status: null,
+  statusError: null,
+
+  async refreshStatus() {
+    try {
+      const st = await aiStatus();
+      set({ status: st, statusError: null });
+    } catch (err) {
+      // 404 说明服务端还是旧进程，界面要如实显示「未就绪」，而不是假装本地分析可用
+      set({ status: null, statusError: (err as Error).message });
+    }
+  },
 
   load(bucket) {
     if (get().bucket === bucket && (get().reports.length || get().chats.length)) return;

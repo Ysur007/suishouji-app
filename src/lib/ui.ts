@@ -7,6 +7,7 @@ export type Sheet =
   | { kind: 'settings' }
   | { kind: 'new-group' }
   | { kind: 'spaces' }
+  | { kind: 'ai' }
   | { kind: 'group'; groupId: string }
   | null;
 

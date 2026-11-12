@@ -6,6 +6,8 @@ import { SyncBadge } from './SyncBadge';
 import { navigate } from '../lib/router';
 import { readAuth } from '../lib/auth';
 import { apiUrl } from '../lib/endpoint';
+import { useAi } from '../lib/aiui';
+import { useUI } from '../lib/ui';
 
 export function SettingsBody({ onClose }: { onClose: () => void }) {
   const deviceName = useApp((s) => s.deviceName);
@@ -14,6 +16,8 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
   const sync = useApp((s) => s.sync);
   const memos = useApp((s) => s.memos);
   const folders = useApp((s) => s.folders);
+  const aiStatus = useAi((s) => s.status);
+  const openSheet = useUI((s) => s.open);
   const importData = useApp((s) => s.importData);
   const auth = useApp((s) => s.auth);
   const lastUser = useApp((s) => s.lastUser);
@@ -162,6 +166,27 @@ export function SettingsBody({ onClose }: { onClose: () => void }) {
                 {memoCount} 条记录 · {folderCount} 个文件夹
                 {sync.pending > 0 ? ` · ${sync.pending} 条待发送` : ''}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="section-label">AI</div>
+          <div className="settings-row">
+            <div className="settings-row__main">
+              <div className="settings-row__label">
+                {aiStatus?.configured ? `已接入 · ${aiStatus.model}` : '本地引擎'}
+              </div>
+              <div className="settings-row__desc">
+                {aiStatus?.configured
+                  ? '整理与对话会调用你配置的模型，密钥只存在服务端'
+                  : '整理与对话在本地完成：归类、摘句、抽待办，不调用模型'}
+              </div>
+            </div>
+            <div className="settings-row__right">
+              <button className="account-link" onClick={() => openSheet({ kind: 'ai' })}>
+                配置
+              </button>
             </div>
           </div>
         </div>

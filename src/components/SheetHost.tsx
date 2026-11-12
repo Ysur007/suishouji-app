@@ -6,6 +6,7 @@ import { NewFolderBody, RenameFolderBody } from './NewFolderSheet';
 import { SettingsBody } from './SettingsSheet';
 import { GroupBody, NewGroupBody } from './GroupSheet';
 import { SpacesBody } from './SpacesSheet';
+import { AiSettingsBody } from './AiSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -37,6 +38,7 @@ export function SheetHost() {
             {sheet.kind === 'new-group' && <NewGroupBody onClose={close} />}
             {sheet.kind === 'group' && <GroupBody groupId={sheet.groupId} onClose={close} />}
             {sheet.kind === 'spaces' && <SpacesBody onClose={close} />}
+            {sheet.kind === 'ai' && <AiSettingsBody onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

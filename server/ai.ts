@@ -15,6 +15,8 @@
  *   6. 待办按句式线索（记得 / 要 / 明天 / 截止 / 预约…）抽取。
  */
 
+import { chatComplete, loadConfig } from './llm.js';
+
 export type Engine = 'llm' | 'local';
 
 export interface AiMemo {
@@ -76,11 +78,9 @@ export interface ChatRef {
  * 配置
  * ------------------------------------------------------------------ */
 
-export function aiConfig() {
-  const key = (process.env.AI_API_KEY || process.env.OPENAI_API_KEY || '').trim();
-  const base = (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const model = (process.env.AI_MODEL || 'gpt-4o-mini').trim();
-  return { key, base, model, engine: (key ? 'llm' : 'local') as Engine };
+/** 有没有可用密钥，决定走模型还是本地引擎 */
+export function hasKey(dataDir: string): boolean {
+  return Boolean(loadConfig(dataDir).apiKey);
 }
 
 /* ------------------------------------------------------------------ *
@@ -599,30 +599,11 @@ export function chatLocal(memos: AiMemo[], messages: ChatMessage[]): { answer: s
  * ------------------------------------------------------------------ */
 
 async function llmCall(
-  messages: Array<{ role: string; content: string }>,
-  opts: { json?: boolean; timeout?: number } = {},
+  dataDir: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  opts: { json?: boolean } = {},
 ): Promise<string> {
-  const { key, base, model } = aiConfig();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), opts.timeout ?? 25000);
-  try {
-    const res = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.3,
-        ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
-      }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok) throw new Error(`模型返回 ${res.status}`);
-    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return data.choices?.[0]?.message?.content ?? '';
-  } finally {
-    clearTimeout(timer);
-  }
+  return chatComplete(dataDir, messages, { json: opts.json });
 }
 
 function memoDigest(memos: AiMemo[], limit = 120): string {
@@ -633,6 +614,7 @@ function memoDigest(memos: AiMemo[], limit = 120): string {
 }
 
 export async function organizeWithLlm(
+  dataDir: string,
   memos: AiMemo[],
   label: string,
   days: number | null,
@@ -652,6 +634,7 @@ ${memoDigest(memos)}`;
 
   try {
     const raw = await llmCall(
+      dataDir,
       [
         { role: 'system', content: '你是中文信息整理助手，只输出合法 JSON。' },
         { role: 'user', content: prompt },
@@ -696,11 +679,10 @@ ${memoDigest(memos)}`;
 
     if (!topics.length) return local;
 
-    const { key, model } = aiConfig();
     return {
       ...local,
       engine: 'llm',
-      model: key ? model : null,
+      model: loadConfig(dataDir).model,
       topics,
       todos,
       overview: { ...local.overview, topics: topics.length, todos: todos.length },
@@ -712,6 +694,7 @@ ${memoDigest(memos)}`;
 }
 
 export async function chatWithLlm(
+  dataDir: string,
   memos: AiMemo[],
   messages: ChatMessage[],
 ): Promise<{ answer: string; refs: ChatRef[] }> {
@@ -728,7 +711,7 @@ export async function chatWithLlm(
     .map((m) => `${m.role === 'user' ? '用户' : '助手'}：${m.content}`)
     .join('\n');
 
-  const answer = await llmCall([
+  const answer = await llmCall(dataDir, [
     {
       role: 'system',
       content: `你是用户私人笔记的助手。只根据下面这些记录回答，记录里没有的就直说没有，不要编造。

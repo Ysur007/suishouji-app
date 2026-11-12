@@ -50,9 +50,51 @@ export interface ChatTurn {
   engine?: Engine;
 }
 
+export type Provider = 'auto' | 'openai' | 'anthropic' | 'gemini';
+
 export interface AiStatus {
   engine: Engine;
-  model: string | null;
+  configured: boolean;
+  provider: Provider;
+  resolved: Exclude<Provider, 'auto'>;
+  baseUrl: string;
+  model: string;
+  keyHint: string;
+  source: 'file' | 'env' | 'default';
+}
+
+export interface AiConfig {
+  provider: Provider;
+  resolved: Exclude<Provider, 'auto'>;
+  baseUrl: string;
+  model: string;
+  maxTokens: number;
+  hasKey: boolean;
+  keyHint: string;
+  source: 'file' | 'env' | 'default';
+}
+
+export interface ProbeResult {
+  ok: boolean;
+  provider: Exclude<Provider, 'auto'>;
+  model: string;
+  latency: number;
+  sample: string;
+  error?: string;
+}
+
+/** 把服务端的原始报错翻成人话，尤其是「接口根本不存在」这种升级后常见的情况 */
+export function friendlyError(message: string): string {
+  const msg = message.trim();
+  if (/not found/i.test(msg)) {
+    return '服务端没有 AI 接口（/api/ai/* 返回 404）。通常是正在运行的进程还是旧代码：重启服务后再试；本地开发如果是新拉的代码，确认已经重新启动。';
+  }
+  if (/401|unauthorized/i.test(msg)) return 'API Key 无效或没有权限（401）。检查 Key 是否填错、是否过期。';
+  if (/403|forbidden/i.test(msg)) return '接口拒绝访问（403）。可能是 Key 无权访问该模型，或需要开启对应权限。';
+  if (/404/.test(msg)) return '接口地址不对（404）。检查 Base URL 与服务商选择是否匹配。';
+  if (/429|rate limit/i.test(msg)) return '触发限流（429）。稍后再试，或换一个模型。';
+  if (/timeout|aborted/i.test(msg)) return '请求超时。检查网络，或换一个更近的接口地址。';
+  return msg;
 }
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
@@ -73,6 +115,28 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 export function aiStatus() {
   return call<AiStatus>('/api/ai/status');
+}
+
+export function getAiConfig() {
+  return call<{ config: AiConfig }>('/api/ai/config');
+}
+
+export function saveAiConfig(patch: {
+  provider?: Provider;
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+  maxTokens?: number;
+}) {
+  return call<{ config: AiConfig; resolved: string; engine: Engine }>('/api/ai/config', patch);
+}
+
+export function clearAiConfig() {
+  return call<{ config: AiConfig; engine: Engine }>('/api/ai/config', { clear: true });
+}
+
+export function testAiConfig() {
+  return call<ProbeResult>('/api/ai/config/test', {});
 }
 
 export function organize(input: { spaceId?: string; days?: number | null; folderId?: string | null }) {
