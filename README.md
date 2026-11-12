@@ -314,9 +314,32 @@ HTTPS 下前端会自动把 `ws://` 换成 `wss://`，无需改代码。
 | --- | --- | --- |
 | 服务商 | 自动 / OpenAI 兼容 / Anthropic / Gemini | 自动 |
 | 接口地址 | 只填到版本号，路径由服务端补 | 按服务商取默认值 |
-| 模型 | 模型名，原样传给服务商 | `gpt-4o-mini` |
+| 模型 | 模型名，原样传给服务商；可点「获取列表」从接口里挑 | `gpt-4o-mini` |
 | API Key | 只存在服务端，前端只回显末四位 | 空 |
 | 最大 tokens | 单次回答上限，默认 1024 | 1024 |
+
+#### 模型列表
+
+模型名不用手打：填好地址和 Key 后点输入框右侧的「获取列表」，服务端会带着这份（可能还没保存的）Key
+去问接口要一份清单，回来是一个可筛选的面板，点一下就填进输入框。三个协议的取法不同：
+
+| 服务商 | 端点 | 取字段 |
+| --- | --- | --- |
+| OpenAI 兼容 | `GET {base}/v1/models` | `data[].id` |
+| Anthropic | `GET {base}/v1/models?limit=1000` | `data[].id` / `display_name` |
+| Gemini | `GET {base}/v1beta/models?pageSize=200&key=` | `models[].name`（去掉 `models/` 前缀） |
+
+几个刻意的处理：
+
+- **过滤不能对话的**：`embedding` / `whisper` / `tts` / `dall-e` / `moderation` 这些拿去 `chat/completions` 一定报错，
+  直接从列表里筛掉；万一网关命名不规范把全部筛空了，就保留原样。
+- **对话模型排前**：OpenAI 官方列表六十多个，`gpt-4` / `claude` / `deepseek` 这类按名字加权排前面。
+- **Key 不外泄**：Gemini 的 key 走 query，回给前端前会洗成 `key=***`。
+- **地址改了列表就作废**：模型清单和地址绑定，改完地址会提示重新获取，不会让你点到另一个服务商的模型。
+- **网关没实现 /models 也能用**：返回 404/405 时明确告诉你「这个接口没有提供模型清单，只能手填」，不是故障。
+
+对应接口：`POST /api/ai/models`，body `{provider?, baseUrl?, apiKey?}`（都留空就用已保存的配置），
+返回 `{models: [{id, label}], provider, endpoint, count}`。
 
 #### 兼容的接口规范
 
@@ -393,6 +416,7 @@ JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeTyp
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET | `/api/ai/status` | 当前引擎与模型名 |
+| POST | `/api/ai/models` | `{provider?, baseUrl?, apiKey?}` → `{models, provider, endpoint, count}` |
 | POST | `/api/ai/organize` | `{spaceId?, days?, folderId?}` → 结构化报告 |
 | POST | `/api/ai/chat` | `{messages, spaceId?}` → `text/event-stream`，事件为 `{delta}` / `{done, refs, engine}` |
 

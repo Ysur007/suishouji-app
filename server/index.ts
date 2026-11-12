@@ -16,6 +16,7 @@ import {
 import {
   chatStreamText,
   clearConfig,
+  listModels,
   loadConfig,
   probe,
   publicConfig,
@@ -347,6 +348,26 @@ const server = http.createServer(async (req, res) => {
     if (!user) return json(res, 401, { error: '未登录' });
     const result = await probe(DATA_DIR);
     return json(res, 200, result);
+  }
+
+  // 列模型：用当前（或表单里还没保存的）地址 + Key 去问服务商要一份模型清单
+  if (pathname === '/api/ai/models' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    try {
+      const body = JSON.parse(await readBody(req, 32 * 1024)) as {
+        provider?: Provider;
+        baseUrl?: string;
+        apiKey?: string;
+      };
+      const result = await listModels(DATA_DIR, {
+        provider: body.provider,
+        baseUrl: typeof body.baseUrl === 'string' ? body.baseUrl : undefined,
+        apiKey: typeof body.apiKey === 'string' ? body.apiKey : undefined,
+      });
+      return json(res, 200, result);
+    } catch (err) {
+      return json(res, 400, { error: (err as Error).message });
+    }
   }
 
   if (pathname === '/api/ai/organize' && req.method === 'POST') {

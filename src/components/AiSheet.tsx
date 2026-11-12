@@ -10,9 +10,11 @@ import {
   clearAiConfig,
   friendlyError,
   getAiConfig,
+  listAiModels,
   saveAiConfig,
   testAiConfig,
   type AiConfig,
+  type AiModelOption,
   type ProbeResult,
   type Provider,
 } from '../lib/ai';
@@ -63,6 +65,14 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState<'save' | 'test' | null>(null);
   const [probe, setProbe] = useState<ProbeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // 模型列表：拿到后既可以直接点选，也不影响手填
+  const [models, setModels] = useState<AiModelOption[] | null>(null);
+  const [modelsProvider, setModelsProvider] = useState<Exclude<Provider, 'auto'> | null>(null);
+  const [modelsFor, setModelsFor] = useState(''); // 拉列表时用的地址，改了地址就作废
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [modelQuery, setModelQuery] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -122,6 +132,41 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
 
   const active = PROVIDERS.find((p) => p.key === provider) ?? PROVIDERS[0];
 
+  const fetchModels = async () => {
+    setModelsBusy(true);
+    setError(null);
+    try {
+      // 用表单里的草稿值去查：用户填完 Key 就想看列表，不该被迫先保存
+      const res = await listAiModels({ provider, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() });
+      setModels(res.models);
+      setModelsProvider(res.provider);
+      setModelsFor(baseUrl.trim());
+      setModelQuery('');
+      setModelsOpen(res.models.length > 0);
+      if (!res.models.length) {
+        setError(res.note ?? '这个接口没有返回任何模型，只能手填模型名');
+      } else if (!res.models.some((m) => m.id === model) && model) {
+        // 当前填的名字不在列表里：多半是拼错了，但不擅自改
+        notify(`已获取 ${res.count} 个模型；当前填写的「${model}」不在列表里`);
+      } else {
+        notify(`已获取 ${res.count} 个模型`);
+      }
+    } catch (err) {
+      setError(friendlyError((err as Error).message));
+    } finally {
+      setModelsBusy(false);
+    }
+  };
+
+  const filteredModels = (models ?? []).filter((m) => {
+    const q = modelQuery.trim().toLowerCase();
+    if (!q) return true;
+    return m.id.toLowerCase().includes(q) || m.label.toLowerCase().includes(q);
+  });
+
+  // 地址改过之后旧列表就不可信了（Key 换了不影响，模型清单和地址绑）
+  const modelsStale = Boolean(models) && modelsFor !== baseUrl.trim();
+
   if (!user) {
     return (
       <>
@@ -172,6 +217,7 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
                 data-active={provider === p.key}
                 onClick={() => {
                   setProvider(p.key);
+                  setModelsOpen(false);
                   // 切到具体服务商时把默认地址/模型带出来，省得用户查文档
                   if (p.key !== 'auto') {
                     if (!baseUrl || PROVIDERS.some((q) => q.base === baseUrl)) setBaseUrl(p.base);
@@ -202,13 +248,68 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
 
         <div className="field">
           <div className="field__label">模型</div>
-          <input
-            className="field__input"
-            value={model}
-            placeholder={active.model || 'gpt-4o-mini'}
-            spellCheck={false}
-            onChange={(e) => setModel(e.target.value)}
-          />
+          <div className="aiModelRow">
+            <input
+              className="field__input"
+              value={model}
+              placeholder={active.model || 'gpt-4o-mini'}
+              spellCheck={false}
+              onChange={(e) => setModel(e.target.value)}
+            />
+            <button
+              className="btn btn--ghost aiModelRow__fetch"
+              disabled={busy !== null || modelsBusy}
+              onClick={() => void fetchModels()}
+              title="向当前接口查询可用模型"
+            >
+              {modelsBusy ? '查询中…' : models ? '重新获取' : '获取列表'}
+            </button>
+          </div>
+          <div className="field__hint">
+            {modelsStale
+              ? '地址改过了，重新获取一次才能对上号。'
+              : models
+                ? `接口返回 ${models.length} 个模型${modelsProvider ? `（${labelOf(modelsProvider)}）` : ''}，点下方列表直接选，仍可手填。`
+                : '不知道填什么就点「获取列表」：服务端会问接口要一份模型清单，不用手打名字。'}
+          </div>
+          {modelsOpen && models && models.length && !modelsStale ? (
+            <div className="aiModelPick">
+              <div className="aiModelPick__bar">
+                <input
+                  className="aiModelPick__search"
+                  value={modelQuery}
+                  placeholder="筛选模型名"
+                  spellCheck={false}
+                  autoFocus
+                  onChange={(e) => setModelQuery(e.target.value)}
+                />
+                <button className="text-link" onClick={() => setModelsOpen(false)}>
+                  收起
+                </button>
+              </div>
+              <div className="aiModelPick__list">
+                {filteredModels.map((m) => (
+                  <button
+                    key={m.id}
+                    className="aiModelPick__item"
+                    data-active={m.id === model}
+                    onClick={() => {
+                      setModel(m.id);
+                      setModelsOpen(false);
+                      setModelQuery('');
+                      setProbe(null);
+                    }}
+                  >
+                    <span className="aiModelPick__id">{m.id}</span>
+                    {m.label !== m.id ? <span className="aiModelPick__label">{m.label}</span> : null}
+                  </button>
+                ))}
+                {filteredModels.length === 0 ? (
+                  <div className="aiModelPick__empty">没有匹配「{modelQuery}」的模型</div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="field">

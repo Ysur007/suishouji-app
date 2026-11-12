@@ -283,6 +283,186 @@ async function postJson(url: string, headers: Record<string, string>, body: unkn
   }
 }
 
+async function getJson(url: string, headers: Record<string, string>, timeoutMs = 20000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { accept: 'application/json', 'user-agent': 'suishouji/1.2', ...headers },
+      signal: ctrl.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(describeHttpError(res.status, text));
+    if (!text) throw new Error('接口返回为空');
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      throw new Error(describeHttpError(res.status, text));
+    }
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') throw new Error('请求超时：列模型接口 20 秒没有响应');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 模型列表
+ * ------------------------------------------------------------------ */
+
+/**
+ * 三种协议的「列模型」端点：
+ *   openai     `GET {v1}/models`        → `{ data: [{ id }] }`
+ *   anthropic  `GET {v1}/models`        → `{ data: [{ id, display_name }], has_more }`
+ *   gemini     `GET {v1beta}/models`    → `{ models: [{ name, displayName, supportedGenerationMethods }] }`
+ *
+ * OpenAI 兼容网关（DeepSeek / Kimi / 通义 / OpenRouter / Ollama / OneAPI…）大多实现了
+ * `/v1/models`，但也有只做 chat 的极简网关返回 404——那种情况退回手填即可，不是故障。
+ */
+function modelsEndpoint(base: string, resolved: ResolvedProvider, key: string): string {
+  const b = trimEnd(base);
+  if (resolved === 'gemini') {
+    const root = /\/v1beta$/i.test(b) ? b : `${b}/v1beta`;
+    return `${root}/models?pageSize=200&key=${encodeURIComponent(key)}`;
+  }
+  if (resolved === 'anthropic') {
+    if (/\/models$/i.test(b)) return `${b}?limit=1000`;
+    if (/\/v\d+$/i.test(b)) return `${b}/models?limit=1000`;
+    return `${b}/v1/models?limit=1000`;
+  }
+  const root = b.replace(/\/chat\/completions$/i, '');
+  if (/\/models$/i.test(root)) return root;
+  if (/\/v\d+(\.\d+)?$/i.test(root)) return `${root}/models`;
+  return `${root}/v1/models`;
+}
+
+export interface ModelOption {
+  id: string;
+  label: string;
+}
+
+/** 去掉 Gemini 的 `models/` 前缀；OpenAI 网关偶尔返回裸数组、或把 id 放在 name 里 */
+function pickModels(resolved: ResolvedProvider, data: Record<string, unknown>): ModelOption[] {
+  const out: ModelOption[] = [];
+  const push = (id: unknown, label?: unknown) => {
+    if (typeof id !== 'string' || !id.trim()) return;
+    const clean = id.replace(/^models\//, '').trim();
+    if (!clean) return;
+    out.push({ id: clean, label: typeof label === 'string' && label.trim() ? label.trim() : clean });
+  };
+
+  if (resolved === 'gemini') {
+    const list = (data.models ?? []) as Array<Record<string, unknown>>;
+    for (const m of list) {
+      // 只留能对话的：Gemini 的列表里混着 embedding / aqa 等不能 generateContent 的
+      const methods = (m.supportedGenerationMethods ?? []) as string[];
+      if (methods.length && !methods.includes('generateContent')) continue;
+      push(m.name, m.displayName);
+    }
+    return out;
+  }
+
+  const list = (Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : []) as Array<
+    Record<string, unknown> | string
+  >;
+  for (const item of list) {
+    if (typeof item === 'string') push(item);
+    else push(item.id ?? item.name ?? item.model, item.display_name ?? item.displayName);
+  }
+  return out;
+}
+
+/** 这些模型拿去 chat/completions 一定失败，不该出现在选模型的列表里 */
+const NON_CHAT = /embed|whisper|\btts\b|audio|dall-e|moderation|rerank|guard|ocr/;
+
+/** 对话模型排前面：OpenAI 的列表里 60% 是 embedding / tts / whisper / 图像模型 */
+function rankModel(id: string): number {
+  const s = id.toLowerCase();
+  if (NON_CHAT.test(s)) return 2;
+  if (/chat|instruct|gpt-4|gpt-3\.5|gpt-5|claude|gemini|deepseek|qwen|kimi|moonshot|glm|llama|mistral|doubao|hunyuan|ernie|yi-/.test(s))
+    return 0;
+  return 1;
+}
+
+export interface ModelListResult {
+  models: ModelOption[];
+  provider: ResolvedProvider;
+  endpoint: string;
+  count: number;
+  note?: string;
+}
+
+/**
+ * 查询当前接口的可用模型。
+ *
+ * `draft` 允许前端传「还没保存」的地址/Key/服务商——用户填完 Key 就想看列表，
+ * 不该被迫先保存一次。Key 留空时才回落到已保存的那份。
+ */
+export async function listModels(
+  dataDir: string,
+  draft: { provider?: Provider; baseUrl?: string; apiKey?: string } = {},
+): Promise<ModelListResult> {
+  const saved = loadConfig(dataDir);
+  const merged: LlmConfig = {
+    provider: (draft.provider ?? saved.provider) as Provider,
+    baseUrl: (draft.baseUrl ?? saved.baseUrl ?? '').trim() || saved.baseUrl,
+    apiKey: (draft.apiKey ?? '').trim() || saved.apiKey,
+    model: saved.model,
+    maxTokens: saved.maxTokens,
+  };
+  const resolved = resolveProvider(merged);
+  if (!merged.baseUrl) merged.baseUrl = DEFAULTS[resolved].baseUrl;
+  if (!merged.apiKey) {
+    throw new Error('还没有 API Key：先填上（或先保存一次）再拉列表');
+  }
+
+  const url = modelsEndpoint(merged.baseUrl, resolved, merged.apiKey);
+  const headers: Record<string, string> =
+    resolved === 'gemini'
+      ? {}
+      : resolved === 'anthropic'
+        ? { 'x-api-key': merged.apiKey, 'anthropic-version': '2023-06-01' }
+        : { authorization: `Bearer ${merged.apiKey}` };
+
+  let data: Record<string, unknown>;
+  try {
+    data = await getJson(url, headers);
+  } catch (err) {
+    const msg = (err as Error).message;
+    // /models 不是 chat 的硬依赖：多数极简网关没实现，退手填即可
+    if (/HTTP 40[45]/.test(msg)) {
+      const code = msg.match(/HTTP (\d{3})/)?.[1] ?? '404';
+      throw new Error(
+        `这个接口没有提供模型清单（GET ${safeEndpointOf(url)} 返回 ${code}）。只能手填模型名——服务商文档或控制台里能查到。`,
+      );
+    }
+    throw err;
+  }
+
+  const seen = new Set<string>();
+  const all = pickModels(resolved, data).filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+  // 过滤掉必然不能对话的；万一网关命名不规范把全部筛没了，就保留原样
+  const chatOnly = all.filter((m) => !NON_CHAT.test(m.id.toLowerCase()));
+  const models = (chatOnly.length ? chatOnly : all).sort(
+    (a, b) => rankModel(a.id) - rankModel(b.id) || a.id.localeCompare(b.id),
+  );
+
+  return {
+    models,
+    provider: resolved,
+    endpoint: safeEndpointOf(url),
+    count: models.length,
+    note: models.length ? undefined : '接口返回了空列表，只能手填模型名',
+  };
+}
+
+/** 端点里可能带 key（Gemini 走 query），回前端前必须洗掉 */
+function safeEndpointOf(url: string): string {
+  return url.replace(/key=[^&]*/i, 'key=***');
+}
+
 async function postStream(
   url: string,
   headers: Record<string, string>,

@@ -140,6 +140,24 @@ export function testAiConfig() {
   return call<ProbeResult>('/api/ai/config/test', {});
 }
 
+export interface AiModelOption {
+  id: string;
+  label: string;
+}
+
+export interface AiModelList {
+  models: AiModelOption[];
+  provider: Exclude<Provider, 'auto'>;
+  endpoint: string;
+  count: number;
+  note?: string;
+}
+
+/** 查当前接口有哪些模型。地址/Key 可以传表单里的草稿值，不必先保存。 */
+export function listAiModels(draft: { provider?: Provider; baseUrl?: string; apiKey?: string } = {}) {
+  return call<AiModelList>('/api/ai/models', draft);
+}
+
 export function organize(input: { spaceId?: string; days?: number | null; folderId?: string | null }) {
   return call<{ report: OrganizeReport }>('/api/ai/organize', input);
 }
