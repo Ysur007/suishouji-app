@@ -20,7 +20,7 @@ import { navigate } from '../lib/router';
 import { liveMemos, useApp } from '../lib/store';
 import { useAi } from '../lib/aiui';
 import { useUI } from '../lib/ui';
-import { IconChevron, IconDevice, IconPlus, IconUser, IconUsers } from '../components/Icons';
+import { IconChevron, IconPlus, IconUser, IconUsers } from '../components/Icons';
 import { SyncBadge } from '../components/SyncBadge';
 
 export function AccountPage() {
@@ -371,7 +371,16 @@ export function AccountPage() {
               <Row
                 label={deviceName}
                 sub={`设备 ID · ${clientId.slice(0, 8)}… · ${platform}`}
-                right={<IconDevice width={14} height={14} className="row__muted" />}
+                right="改名"
+                nav
+                onClick={() => openSheet({ kind: 'device' })}
+              />
+              <Row
+                label="修改密码"
+                sub={auth ? '改完其它设备上的登录会失效' : '登录后可修改'}
+                right={auth ? '修改' : '登录'}
+                nav
+                onClick={() => (auth ? openSheet({ kind: 'password' }) : navigate('/login?next=/account'))}
               />
               <Row
                 label="同步状态"

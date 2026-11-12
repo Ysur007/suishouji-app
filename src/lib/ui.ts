@@ -8,6 +8,8 @@ export type Sheet =
   | { kind: 'spaces' }
   | { kind: 'ai' }
   | { kind: 'chats' }
+  | { kind: 'password' }
+  | { kind: 'device' }
   | { kind: 'group'; groupId: string }
   | null;
 

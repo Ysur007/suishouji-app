@@ -192,6 +192,40 @@ export class Store {
     return { ok: true, token, user: { id: user.id, username: user.username } };
   }
 
+  /**
+   * 改密码：校验原密码 → 换新盐重算哈希 → 把该账号在其它设备上的 token 全部作废。
+   * 只留当前这台，避免"改完密码别人还挂着"。
+   */
+  changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+    keepToken: string,
+  ): { ok: boolean; error?: string; code?: number; dropped?: number } {
+    const user = this.db.users[userId];
+    if (!user) return { ok: false, error: '账号不存在', code: 404 };
+    if (!safeEqual(hashPassword(oldPassword, user.salt), user.hash)) {
+      return { ok: false, error: '原密码不对', code: 400 };
+    }
+    if (newPassword.length < MIN_PASSWORD) {
+      return { ok: false, error: `新密码至少 ${MIN_PASSWORD} 位`, code: 400 };
+    }
+    if (newPassword === oldPassword) {
+      return { ok: false, error: '新密码和原密码一样，换个别的', code: 400 };
+    }
+    user.salt = crypto.randomBytes(16).toString('hex');
+    user.hash = hashPassword(newPassword, user.salt);
+    let dropped = 0;
+    for (const [token, row] of Object.entries(this.db.tokens)) {
+      if (row.userId === userId && token !== keepToken) {
+        delete this.db.tokens[token];
+        dropped += 1;
+      }
+    }
+    this.scheduleSave();
+    return { ok: true, dropped };
+  }
+
   private issueToken(userId: string): string {
     const token = crypto.randomBytes(32).toString('hex');
     this.db.tokens[token] = { userId, createdAt: Date.now() };

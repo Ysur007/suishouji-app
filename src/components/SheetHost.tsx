@@ -7,6 +7,7 @@ import { GroupBody, NewGroupBody } from './GroupSheet';
 import { SpacesBody } from './SpacesSheet';
 import { AiSettingsBody } from './AiSheet';
 import { ChatsBody } from './ChatsSheet';
+import { DeviceNameBody, PasswordBody } from './AccountSecurity';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -39,6 +40,8 @@ export function SheetHost() {
             {sheet.kind === 'spaces' && <SpacesBody onClose={close} />}
             {sheet.kind === 'ai' && <AiSettingsBody onClose={close} />}
             {sheet.kind === 'chats' && <ChatsBody onClose={close} />}
+            {sheet.kind === 'password' && <PasswordBody onClose={close} />}
+            {sheet.kind === 'device' && <DeviceNameBody onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

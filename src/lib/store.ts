@@ -145,6 +145,8 @@ interface AppState {
    * 整理报告是服务端算的，可能引用到本机还没同步到的记录——直接打开会是个空浮层。
    */
   ensureMemo: (id: string) => Promise<Memo | null>;
+  /** 改本机设备名（只影响这台的标识，不动数据） */
+  setDeviceName: (name: string) => void;
   setSync: (patch: Partial<SyncState>) => void;
   setPeers: (peers: Peer[]) => void;
   importData: (records: Array<Record<string, unknown>>) => number;
@@ -625,6 +627,13 @@ export const useApp = create<AppState>((set, get) => ({
     } catch {
       return null;
     }
+  },
+
+  setDeviceName(name) {
+    const next = name.trim().slice(0, 24);
+    if (!next) return;
+    localStorage.setItem(LS.name, next);
+    set({ deviceName: next });
   },
 
   setSync(patch) {

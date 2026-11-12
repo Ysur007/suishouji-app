@@ -56,6 +56,18 @@ export function apiLogin(username: string, password: string) {
   return post('/api/auth/login', { username, password });
 }
 
+/** 改密码：成功后服务端会把它它设备上的 token 作废，只留当前这台 */
+export async function apiChangePassword(token: string, oldPassword: string, newPassword: string) {
+  const res = await fetch(apiUrl('/api/auth/password'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; dropped?: number; error?: string };
+  if (!res.ok) throw new Error(data.error || '修改失败，请稍后再试');
+  return { dropped: data.dropped ?? 0 };
+}
+
 export async function apiLogout(token: string) {
   try {
     await post('/api/auth/logout', {}, token);

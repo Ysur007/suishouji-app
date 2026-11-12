@@ -264,6 +264,28 @@ const server = http.createServer(async (req, res) => {
 
   const user = store.userByToken(bearer(req) ?? url.searchParams.get('token') ?? undefined);
 
+  // 改密码：要求原密码；改完把其它设备上的登录作废，只留这台
+  if (pathname === '/api/auth/password' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    try {
+      const body = JSON.parse(await readBody(req, 8 * 1024)) as {
+        oldPassword?: string;
+        newPassword?: string;
+      };
+      const result = store.changePassword(
+        user.id,
+        String(body.oldPassword ?? ''),
+        String(body.newPassword ?? ''),
+        bearer(req) ?? '',
+      );
+      if (!result.ok) return json(res, result.code ?? 400, { error: result.error });
+      return json(res, 200, { ok: true, dropped: result.dropped ?? 0 });
+    } catch (err) {
+      return json(res, 400, { error: (err as Error).message });
+    }
+  }
+
+
   if (pathname.startsWith('/api/groups')) {
     if (!user) return json(res, 401, { error: '未登录' });
 
