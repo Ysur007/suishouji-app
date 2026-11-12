@@ -10,17 +10,20 @@ import {
   clearAiConfig,
   friendlyError,
   getAiConfig,
+  importLegacyAiConfig,
   listAiModels,
   saveAiConfig,
   testAiConfig,
   type AiConfig,
   type AiModelOption,
+  type LegacyAiHint,
   type ProbeResult,
   type Provider,
 } from '../lib/ai';
 import { useApp } from '../lib/store';
 import { useAi } from '../lib/aiui';
 import { IconCheck, IconSpark } from './Icons';
+import { LoginGate } from './LoginGate';
 
 const PROVIDERS: Array<{ key: Provider; label: string; hint: string; base: string; model: string }> = [
   {
@@ -58,6 +61,7 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
   const notify = useApp((s) => s.notify);
 
   const [loaded, setLoaded] = useState<AiConfig | null>(null);
+  const [legacy, setLegacy] = useState<LegacyAiHint | null>(null);
   const [provider, setProvider] = useState<Provider>('auto');
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
@@ -72,13 +76,15 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
   const [modelsFor, setModelsFor] = useState(''); // 拉列表时用的地址，改了地址就作废
   const [modelsOpen, setModelsOpen] = useState(false);
   const [modelsBusy, setModelsBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [modelQuery, setModelQuery] = useState('');
 
   useEffect(() => {
     if (!user) return;
     getAiConfig()
-      .then(({ config }) => {
+      .then(({ config, legacy: legacyHint }) => {
         setLoaded(config);
+        setLegacy(legacyHint ?? null);
         setProvider(config.provider);
         setBaseUrl(config.baseUrl);
         setModel(config.model);
@@ -120,13 +126,32 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
       setApiKey('');
       const res = await testAiConfig();
       setProbe(res);
-      const { config } = await getAiConfig();
+      const { config, legacy: legacyHint } = await getAiConfig();
       setLoaded(config);
-      void useAi.getState().refreshStatus();
+      setLegacy(legacyHint ?? null);      void useAi.getState().refreshStatus();
     } catch (err) {
       setError(friendlyError((err as Error).message));
     } finally {
       setBusy(null);
+    }
+  };
+
+  const doImportLegacy = async () => {
+    setImporting(true);
+    setError(null);
+    try {
+      const res = await importLegacyAiConfig();
+      setLoaded(res.config);
+      setLegacy({ available: false, keyHint: '' });
+      setProvider(res.config.provider);
+      setBaseUrl(res.config.baseUrl);
+      setModel(res.config.model);
+      void useAi.getState().refreshStatus();
+      notify('已导入到当前账号，其他账号不会再有这份配置');
+    } catch (err) {
+      setError(friendlyError((err as Error).message));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -171,8 +196,16 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
     return (
       <>
         <div className="sheet__title">AI 接入</div>
-        <div className="sheet__desc">登录后才能配置：密钥保存在服务端，按账号隔离。</div>
-      <div className="sheet__actions">
+        <div className="sheet__desc">密钥保存在服务端、按账号隔离，所以要先登录才能配置。</div>
+        <div className="sheet__body">
+          <LoginGate
+            compact
+            title="登录后配置模型"
+            desc="配置只对当前账号生效；不配也能用本地引擎（归类、摘句、抽待办），只是不做生成式推理。"
+            benefits={['按账号隔离', '密钥不下发浏览器']}
+          />
+        </div>
+        <div className="sheet__actions">
           <button className="btn btn--ghost" onClick={onClose}>
             关闭
           </button>
@@ -200,9 +233,9 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
             <div className="aiStatusSub">
               {loaded?.hasKey
                 ? `${loaded.model}${loaded.keyHint ? ` · ${loaded.keyHint}` : ''}${
-                    loaded.source === 'env' ? ' · 来自环境变量' : ' · 来自界面配置'
+                    loaded.source === 'env' ? ' · 来自环境变量（全站）' : ' · 来自界面配置（仅当前账号）'
                   }`
-                : '配置后会在服务端发起请求，密钥不会下发到浏览器'}
+                : '配置后会在服务端发起请求，密钥不会下发到浏览器；配置只对当前账号生效'}
             </div>
           </div>
         </div>
@@ -325,6 +358,23 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
           />
         </div>
 
+        {legacy?.available && !loaded?.hasKey ? (
+          <div className="aiLegacy">
+            <div className="aiLegacy__title">旧版有一份全站配置（{legacy.keyHint}）</div>
+            <div className="aiLegacy__text">
+              以前只有一个全局接口，所有账号共用。现在按账号存，这份旧的只能交给一个账号——
+              导入后归当前账号，别的账号不会再看到。
+            </div>
+            <button
+              className="btn btn--ghost aiLegacy__btn"
+              disabled={busy !== null || importing}
+              onClick={() => void doImportLegacy()}
+            >
+              {importing ? '导入中…' : '导入到当前账号'}
+            </button>
+          </div>
+        ) : null}
+
         {error ? <div className="auth-error">{error}</div> : null}
 
         {probe ? (
@@ -369,8 +419,9 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
             onClick={async () => {
               try {
                 await clearAiConfig();
-                const { config } = await getAiConfig();
+                const { config, legacy: legacyHint } = await getAiConfig();
                 setLoaded(config);
+                setLegacy(legacyHint ?? null);
                 setProvider(config.provider);
                 setBaseUrl(config.baseUrl);
                 setModel(config.model);

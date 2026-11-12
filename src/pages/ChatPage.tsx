@@ -13,7 +13,8 @@ import { EngineTag } from '../components/EngineTag';
 import { useAi } from '../lib/aiui';
 import { liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
-import { IconChat, IconPlus, IconSend, IconSpark } from '../components/Icons';
+import { IconChat, IconList, IconPlus, IconSend, IconSpark } from '../components/Icons';
+import { LoginGate } from '../components/LoginGate';
 
 const SUGGESTIONS = [
   '这段时间我都在忙什么？',
@@ -24,6 +25,7 @@ const SUGGESTIONS = [
 
 export function ChatPage() {
   const bucket = useApp((s) => s.viewBucket);
+  const auth = useApp((s) => s.auth);
   const activeSpace = useApp((s) => s.activeSpace);
   const groups = useApp((s) => s.groups);
   const memos = useApp((s) => s.memos);
@@ -150,12 +152,35 @@ export function ChatPage() {
         </div>
         <div className="aiHead__side">
           <EngineTag />
-          <button className="icon-btn icon-btn--bordered" aria-label="新对话" onClick={() => newChat()}>
+          <button
+            className="icon-btn icon-btn--bordered chatHistory"
+            aria-label="对话列表"
+            title="对话列表"
+            onClick={() => openSheet({ kind: 'chats' })}
+          >
+            <IconList width={17} height={17} />
+          </button>
+          <button
+            className="icon-btn icon-btn--bordered"
+            aria-label="新对话"
+            title="新对话"
+            onClick={() => newChat()}
+          >
             <IconPlus width={17} height={17} />
           </button>
         </div>
       </header>
 
+      {!auth ? (
+        <div className="aiGateWrap">
+          <LoginGate
+            title="对话需要登录"
+            desc="回答要从你的记录里检索，服务端得先知道这些记录属于谁。登录后回到这里就能直接问，未登录时写的记录也会并进账号。"
+            benefits={['检索自己的记录', '多设备同步', '回答带引用原文']}
+          />
+        </div>
+      ) : (
+        <>
       <div className="chatScroll" ref={scrollRef}>
         <div className="chatColumn" data-empty={turns.length === 0 ? 'true' : undefined}>
           {turns.length === 0 ? (
@@ -213,6 +238,8 @@ export function ChatPage() {
           Enter 发送 · Shift + Enter 换行 · 回答基于你自己的记录，不联网检索
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

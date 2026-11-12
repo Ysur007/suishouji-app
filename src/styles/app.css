@@ -2724,7 +2724,8 @@ textarea.field__input {
 }
 
 .page__card .auth-tabs {
-  margin: 4px 0 18px;
+  /* 上面多了一排权益标签，这里要留出气口，否则挤在一起 */
+  margin: 18px 0 18px;
 }
 
 .page__card .btn--block {
@@ -3259,10 +3260,19 @@ textarea.field__input {
 }
 
 .engineTag i {
+  flex: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--ink-4);
+}
+
+/* 标签文案单独一层：直接在 flex 容器上写 text-overflow 是不生效的 */
+.engineTag__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .engineTag[data-engine='llm'] i {
@@ -4248,6 +4258,32 @@ textarea.field__input {
 }
 
 /* --- 模型列表：输入框右侧一个「获取列表」，展开成可筛选的面板 --- */
+.aiLegacy {
+  border: 1px dashed var(--ink-4);
+  border-radius: 11px;
+  padding: 11px 12px;
+  background: var(--surface-2);
+}
+
+.aiLegacy__title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.aiLegacy__text {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.aiLegacy__btn {
+  margin-top: 9px;
+  height: 32px;
+  font-size: 12px;
+}
+
+/* --- 模型列表：输入框右侧一个「获取列表」，展开成可筛选的面板 --- */
 .aiModelRow {
   display: flex;
   align-items: center;
@@ -4426,4 +4462,287 @@ textarea.field__input {
   flex: none;
   margin-top: 2px;
   opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------ *
+ * 登录入口 / 未登录门禁
+ * ------------------------------------------------------------------ */
+
+/* 登录页：比之前更「像个入口」——加一排权益，标题再重一点 */
+.page--login .page__title {
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.page__perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.page__perks span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+/* 账号页顶部的未登录提示：一眼看见，不用往下找 */
+.card--loginCta {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.card--loginCta .card__actions {
+  margin-top: 12px;
+}
+
+/* 需要登录才能用的区域：不摆空白，直接给因果 + 入口 */
+.aiGateWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px var(--gutter) 32px;
+}
+
+.loginGate {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 22px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.loginGate[data-compact='true'] {
+  padding: 20px 16px 16px;
+  border-radius: 14px;
+}
+
+.loginGate__mark {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 12px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: #fff;
+}
+
+.loginGate__title {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.loginGate__desc {
+  margin-top: 7px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+
+.loginGate__btn {
+  margin-top: 16px;
+  min-width: 148px;
+}
+
+.loginGate__benefits {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.loginGate__benefits span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* ------------------------------------------------------------------ *
+ * 对话列表（窄屏才有入口，桌面在左侧面板里）
+ * ------------------------------------------------------------------ */
+
+.chatHistory {
+  display: none;
+}
+
+.chatSess__new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  height: 40px;
+  border-radius: 11px;
+  border: 1px dashed var(--line);
+  background: var(--surface-2);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.chatSess__new:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.chatSess {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.chatSess__row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+}
+
+.chatSess__row:last-child {
+  border-bottom: 0;
+}
+
+.chatSess__row[data-active='true'] {
+  background: var(--surface-2);
+}
+
+.chatSess__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chatSess__title {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatSess__row[data-active='true'] .chatSess__title {
+  font-weight: 600;
+}
+
+.chatSess__sub {
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.chatSess__x {
+  flex: none;
+  width: 46px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chatSess__x:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.chatSess__x[data-confirm='true'] {
+  width: 58px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 11.5px;
+}
+
+.chatSess__confirm {
+  font-weight: 600;
+}
+
+.chatSess__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 22px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * 窄屏补丁：头部不再把标签挤掉半个字
+ * ------------------------------------------------------------------ */
+
+@media (max-width: 1024px) {
+  /* 面板藏起来了，对话列表只能从这个按钮进 */
+  .chatHistory {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 720px) {
+  /* 标题占一行，状态与操作另起一行：1280 里那套「标题 + 右侧一坨」在 390 宽会互挤 */
+  .aiHead {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .aiHead__side {
+    justify-content: flex-end;
+  }
+
+  /* 标签独占剩余宽度，超长模型名走省略号而不是被切一半 */
+  .aiHead__side .engineTag {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .aiHead__side .engineTag__text {
+    max-width: 100%;
+  }
+
+  .aiHead__title {
+    font-size: 22px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .aiHead__desc {
+    margin-top: 4px;
+  }
+
+  .loginGate {
+    max-width: none;
+  }
 }

@@ -39,6 +39,23 @@ export function AccountPage() {
       </header>
 
       <div className="page__body">
+        {!auth ? (
+          <section className="card card--loginCta">
+            <div className="card__label">
+              <IconUser width={14} height={14} />
+              未登录
+            </div>
+            <p className="card__note">
+              现在写的记录只在这台设备上。登录后自动并进账号，还能多设备同步、建群共享、用 AI 整理和对话。
+            </p>
+            <div className="card__actions">
+              <button className="btn btn--primary" onClick={() => navigate('/login?next=/account')}>
+                登录 / 注册
+              </button>
+            </div>
+          </section>
+        ) : null}
+
         <section className="card">
           <div className="account-head">
             <span className="account-head__avatar">

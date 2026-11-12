@@ -118,8 +118,18 @@ export function aiStatus() {
   return call<AiStatus>('/api/ai/status');
 }
 
+export interface LegacyAiHint {
+  available: boolean;
+  keyHint: string;
+}
+
 export function getAiConfig() {
-  return call<{ config: AiConfig }>('/api/ai/config');
+  return call<{ config: AiConfig; legacy?: LegacyAiHint }>('/api/ai/config');
+}
+
+/** 把旧版全站配置领到当前账号名下（只能领一次） */
+export function importLegacyAiConfig() {
+  return call<{ config: AiConfig; engine: Engine }>('/api/ai/config/import-legacy', {});
 }
 
 export function saveAiConfig(patch: {

@@ -4,8 +4,10 @@ import { navigate } from '../lib/router';
 import { useApp } from '../lib/store';
 import { BrandGlyph } from '../components/Icons';
 
-/** 独立登录页：/login */
+/** 独立登录页：/login?next=/organize —— 登录后回到刚才那个页面 */
 export function LoginPage() {
+  const next = new URLSearchParams(location.search).get('next') || '/';
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +21,8 @@ export function LoginPage() {
 
   // 已登录就不该停在这里
   useEffect(() => {
-    if (ready && auth) navigate('/', true);
-  }, [ready, auth]);
+    if (ready && auth) navigate(safeNext, true);
+  }, [ready, auth, safeNext]);
 
   const submit = async () => {
     if (busy) return;
@@ -41,7 +43,7 @@ export function LoginPage() {
           : await apiRegister(username.trim(), password);
       await signIn(result);
       notify(tab === 'login' ? `欢迎回来，${result.user.username}` : `账号已创建：${result.user.username}`);
-      navigate('/');
+      navigate(safeNext);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -50,7 +52,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="page">
+    <div className="page page--login">
       <div className="page__card">
         <div className="page__brand">
           <div className="brand__mark">
@@ -67,6 +69,12 @@ export function LoginPage() {
           登录后记录会归到你的账号下，在每台设备之间同步，也可以和群里的人共享。
           不登录也能用，内容只留在本机。
         </p>
+
+        <div className="page__perks">
+          <span>多设备同步</span>
+          <span>群组共享</span>
+          <span>AI 整理与对话</span>
+        </div>
 
         <div className="auth-tabs">
           <button

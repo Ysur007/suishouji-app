@@ -13,6 +13,7 @@ import { useAi } from '../lib/aiui';
 import { liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
 import { IconSpark } from '../components/Icons';
+import { LoginGate } from '../components/LoginGate';
 
 const RANGES: Array<{ label: string; days: number | null }> = [
   { label: '最近 7 天', days: 7 },
@@ -28,6 +29,7 @@ function dayLabel(ts: number) {
 
 export function OrganizePage() {
   const bucket = useApp((s) => s.viewBucket);
+  const auth = useApp((s) => s.auth);
   const activeSpace = useApp((s) => s.activeSpace);
   const groups = useApp((s) => s.groups);
   const memos = useApp((s) => s.memos);
@@ -159,9 +161,21 @@ export function OrganizePage() {
       </div>
 
       <div className="orgBody">
+        {!auth ? (
+          <div className="aiGateWrap">
+            <LoginGate
+              title="整理需要登录"
+              desc="主题归纳、待办抽取和句子摘选都在服务端算，而且只读你自己（和你所在群）的记录。登录后再点「开始整理」即可。"
+              benefits={['只读你的记录', '结果可点回原文', '多设备同步']}
+            />
+          </div>
+        ) : (
+          <>
         {error ? <div className="orgError">{error}</div> : null}
 
         {busy ? <Skeleton /> : report ? <ReportView report={report} onOpen={openMemo} /> : <Intro count={localCount} />}
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { IconChat, IconLayers, IconRecord } from './Icons';
+import { IconChat, IconLayers, IconRecord, IconUser } from './Icons';
 import { navigate, useRoute } from '../lib/router';
 
 /**
@@ -13,10 +13,14 @@ export function TabBar() {
     { path: '/', label: '记录', icon: <IconRecord /> },
     { path: '/organize', label: '整理', icon: <IconLayers /> },
     { path: '/chat', label: '对话', icon: <IconChat /> },
+    // 手机上左侧图标栏是隐藏的，没有这一项就找不到登录 / 账号 / 缓存的入口
+    { path: '/account', label: '我的', icon: <IconUser /> },
   ];
 
-  const active =
-    route === '/' ? '/' : route.startsWith('/organize') ? '/organize' : route.startsWith('/chat') ? '/chat' : '/';
+  // 只有一级页面对应 Tab 高亮；/login 这类页面保留「我的」的高亮
+  const active = tabs.find((t) =>
+    t.path === '/' ? route === '/' : route.startsWith(t.path) || (t.path === '/account' && route.startsWith('/login')),
+  )?.path;
 
   return (
     <nav className="tabbar" aria-label="主导航">

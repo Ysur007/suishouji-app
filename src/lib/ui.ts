@@ -8,6 +8,7 @@ export type Sheet =
   | { kind: 'new-group' }
   | { kind: 'spaces' }
   | { kind: 'ai' }
+  | { kind: 'chats' }
   | { kind: 'group'; groupId: string }
   | null;
 

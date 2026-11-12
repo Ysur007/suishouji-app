@@ -76,6 +76,16 @@ function filePath(dataDir: string) {
   return path.join(dataDir, 'ai.json');
 }
 
+/**
+ * 每个账号自己的配置目录：`DATA_DIR/ai/<userId>/ai.json`。
+ *
+ * 配置原本是全站一份，结果 A 账号填的 Key 会出现在 B 账号的界面里——这既不是用户
+ * 期望的「按账号隔离」，也等于把别人的 Key 借给别人用。现在各存一份，互不影响。
+ */
+export function accountDir(dataDir: string, userId: string) {
+  return path.join(dataDir, 'ai', userId);
+}
+
 function readFileConfig(dataDir: string): Partial<LlmConfig> | null {
   const file = filePath(dataDir);
   try {

@@ -14,6 +14,7 @@ import {
   type ChatMessage,
 } from './ai.js';
 import {
+  accountDir,
   chatStreamText,
   clearConfig,
   listModels,
@@ -36,6 +37,44 @@ const DATA_DIR = path.resolve(ROOT, process.env.DATA_DIR ?? 'data');
 
 const store = new Store(DATA_DIR);
 const startedAt = Date.now();
+
+/** 某个账号的 AI 配置目录 */
+const aiDir = (userId: string) => accountDir(DATA_DIR, userId);
+
+/** 有几个账号配了模型（/api/health 用，不含任何账号信息） */
+function aiConfigured(): number {
+  try {
+    return fs
+      .readdirSync(path.join(DATA_DIR, 'ai'))
+      .filter((name) => fs.existsSync(path.join(DATA_DIR, 'ai', name, 'ai.json'))).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * 早期那份全站共用的 `data/ai.json` 不再自动套给任何账号——那正是「一个账号填了、
+ * 所有账号都变成这个接口」的来源。文件留在原处（里面有 Key，不能丢），
+ * 谁能用「只导入给一个账号」的方式领走一次：面板里出现一个导入入口，点一下归当前账号。
+ */
+const LEGACY_AI = () => path.join(DATA_DIR, 'ai.json');
+
+function legacyAiClaimed(): boolean {
+  return fs.existsSync(`${LEGACY_AI()}.claimed`);
+}
+
+function legacyAiInfo(): { available: boolean; keyHint: string } {
+  const file = LEGACY_AI();
+  if (legacyAiClaimed() || !fs.existsSync(file)) return { available: false, keyHint: '' };
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as { apiKey?: string };
+    const key = (raw.apiKey ?? '').trim();
+    if (!key) return { available: false, keyHint: '' };
+    return { available: true, keyHint: `${key.slice(0, 3)}…${key.slice(-4)}` };
+  } catch {
+    return { available: false, keyHint: '' };
+  }
+}
 
 interface SocketMeta {
   clientId: string;
@@ -181,7 +220,8 @@ const server = http.createServer(async (req, res) => {
       records: store.recordCount,
       users: store.userCount,
       groups: store.groupCount,
-      ai: hasKey(DATA_DIR) ? 'llm' : 'local',
+      ai: 'per-user',
+      aiUsers: aiConfigured(),
       clients: [...wss.clients].filter((c) => c.readyState === WebSocket.OPEN).length,
       uptime: Math.round((Date.now() - startedAt) / 1000),
     });
@@ -295,7 +335,8 @@ const server = http.createServer(async (req, res) => {
   /* ----------------------------- AI ----------------------------- */
 
   if (pathname === '/api/ai/status' && req.method === 'GET') {
-    const st = statusOf(DATA_DIR);
+    // 未登录就是「没配」：配置按账号存，游客没有可继承的那一份
+    const st = statusOf(user ? aiDir(user.id) : path.join(DATA_DIR, 'ai', 'guest'));
     return json(res, 200, {
       engine: st.configured ? 'llm' : 'local',
       configured: st.configured,
@@ -311,7 +352,9 @@ const server = http.createServer(async (req, res) => {
   // AI 接入配置：读写都在服务端，key 不下发到前端（只回显末四位）
   if (pathname === '/api/ai/config') {
     if (!user) return json(res, 401, { error: '未登录' });
-    if (req.method === 'GET') return json(res, 200, { config: publicConfig(DATA_DIR) });
+    if (req.method === 'GET') {
+      return json(res, 200, { config: publicConfig(aiDir(user.id)), legacy: legacyAiInfo() });
+    }
     if (req.method === 'POST') {
       try {
         const body = JSON.parse(await readBody(req, 32 * 1024)) as {
@@ -323,10 +366,13 @@ const server = http.createServer(async (req, res) => {
           clear?: boolean;
         };
         if (body.clear) {
-          clearConfig(DATA_DIR);
-          return json(res, 200, { config: publicConfig(DATA_DIR), engine: hasKey(DATA_DIR) ? 'llm' : 'local' });
+          clearConfig(aiDir(user.id));
+          return json(res, 200, {
+            config: publicConfig(aiDir(user.id)),
+            engine: hasKey(aiDir(user.id)) ? 'llm' : 'local',
+          });
         }
-        const next = saveConfig(DATA_DIR, {
+        const next = saveConfig(aiDir(user.id), {
           provider: body.provider,
           baseUrl: typeof body.baseUrl === 'string' ? body.baseUrl : undefined,
           apiKey: typeof body.apiKey === 'string' ? body.apiKey : undefined,
@@ -334,7 +380,7 @@ const server = http.createServer(async (req, res) => {
           maxTokens: body.maxTokens,
         });
         return json(res, 200, {
-          config: publicConfig(DATA_DIR),
+          config: publicConfig(aiDir(user.id)),
           resolved: resolveProvider(next),
           engine: next.apiKey ? 'llm' : 'local',
         });
@@ -346,8 +392,27 @@ const server = http.createServer(async (req, res) => {
 
   if (pathname === '/api/ai/config/test' && req.method === 'POST') {
     if (!user) return json(res, 401, { error: '未登录' });
-    const result = await probe(DATA_DIR);
+    const result = await probe(aiDir(user.id));
     return json(res, 200, result);
+  }
+
+  // 领走旧版那份全站配置：只能领一次，领走后就归这个账号（其他人不再看到入口）
+  if (pathname === '/api/ai/config/import-legacy' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    if (legacyAiClaimed()) return json(res, 400, { error: '旧版配置已经被某个账号领走了' });
+    const info = legacyAiInfo();
+    if (!info.available) return json(res, 400, { error: '没有可导入的旧版配置' });
+    if (hasKey(aiDir(user.id))) return json(res, 400, { error: '本账号已经有配置了，先清除再导入' });
+    try {
+      fs.mkdirSync(aiDir(user.id), { recursive: true });
+      fs.copyFileSync(LEGACY_AI(), path.join(aiDir(user.id), 'ai.json'));
+      fs.writeFileSync(`${LEGACY_AI()}.claimed`, JSON.stringify({ by: user.id, at: Date.now() }), {
+        mode: 0o600,
+      });
+      return json(res, 200, { config: publicConfig(aiDir(user.id)), engine: 'llm' });
+    } catch (err) {
+      return json(res, 500, { error: `导入失败：${(err as Error).message}` });
+    }
   }
 
   // 列模型：用当前（或表单里还没保存的）地址 + Key 去问服务商要一份模型清单
@@ -359,7 +424,7 @@ const server = http.createServer(async (req, res) => {
         baseUrl?: string;
         apiKey?: string;
       };
-      const result = await listModels(DATA_DIR, {
+      const result = await listModels(aiDir(user.id), {
         provider: body.provider,
         baseUrl: typeof body.baseUrl === 'string' ? body.baseUrl : undefined,
         apiKey: typeof body.apiKey === 'string' ? body.apiKey : undefined,
@@ -386,8 +451,8 @@ const server = http.createServer(async (req, res) => {
       });
       const label =
         days && days > 0 ? `最近 ${days} 天` : body.spaceId && body.spaceId.startsWith('g:') ? '群共享' : '全部记录';
-      const report = hasKey(DATA_DIR)
-        ? await organizeWithLlm(DATA_DIR, memos, label, days && days > 0 ? days : null)
+      const report = hasKey(aiDir(user.id))
+        ? await organizeWithLlm(aiDir(user.id), memos, label, days && days > 0 ? days : null)
         : organizeLocal(memos, label, days && days > 0 ? days : null);
       return json(res, 200, { report });
     } catch (err) {
@@ -424,7 +489,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const memos = memosFor(user.id, { spaceId: body.spaceId });
-      const cfg = loadConfig(DATA_DIR);
+      const cfg = loadConfig(aiDir(user.id));
 
       if (cfg.apiKey) {
         // 模型路径：边收边转，前端拿到的就是真实增量
@@ -436,7 +501,7 @@ const server = http.createServer(async (req, res) => {
           .map((m, i) => `${i + 1}. [${new Date(m.createdAt).toLocaleDateString('zh-CN')}] ${m.text.replace(/\s+/g, ' ').slice(0, 160)}`)
           .join('\n');
         await chatStreamText(
-          DATA_DIR,
+          aiDir(user.id),
           [
             {
               role: 'system',

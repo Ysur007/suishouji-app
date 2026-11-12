@@ -7,6 +7,7 @@ import { SettingsBody } from './SettingsSheet';
 import { GroupBody, NewGroupBody } from './GroupSheet';
 import { SpacesBody } from './SpacesSheet';
 import { AiSettingsBody } from './AiSheet';
+import { ChatsBody } from './ChatsSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -39,6 +40,7 @@ export function SheetHost() {
             {sheet.kind === 'group' && <GroupBody groupId={sheet.groupId} onClose={close} />}
             {sheet.kind === 'spaces' && <SpacesBody onClose={close} />}
             {sheet.kind === 'ai' && <AiSettingsBody onClose={close} />}
+            {sheet.kind === 'chats' && <ChatsBody onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>
