@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import type { Memo } from '../lib/types';
 import { formatTime } from '../lib/format';
-import { BrandGlyph, IconFolder, IconMore } from './Icons';
+import { BrandGlyph, IconCheck, IconFolder, IconMore } from './Icons';
 import { useLongPress } from './ContextMenu';
 
 interface Props {
@@ -15,6 +15,10 @@ interface Props {
   onOpen: (memo: Memo) => void;
   onMenu: (x: number, y: number, memo: Memo) => void;
   onImage: (src: string) => void;
+  /** 多选模式：点气泡是勾选，不是打开编辑器 */
+  selectable?: boolean;
+  picked?: boolean;
+  onPick?: () => void;
 }
 
 export function MemoBubble({
@@ -27,12 +31,16 @@ export function MemoBubble({
   onOpen,
   onMenu,
   onImage,
+  selectable,
+  picked,
+  onPick,
 }: Props) {
   const press = useLongPress((point) => onMenu(point.x, point.y, memo));
 
   return (
     <motion.div
-      className={`row row--${side}`}
+      className={`row row--${side}${selectable ? ' row--pickable' : ''}`}
+      data-picked={picked ? 'true' : undefined}
       initial={{ opacity: 0, y: 16, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -43,6 +51,12 @@ export function MemoBubble({
         delay: Math.min(index, 14) * 0.022,
       }}
     >
+      {selectable ? (
+        <span className="rowPick" data-on={picked ? 'true' : 'false'} aria-hidden>
+          {picked ? <IconCheck width={12} height={12} /> : null}
+        </span>
+      ) : null}
+
       {side === 'them' && (
         <div className="avatar" aria-hidden>
           <BrandGlyph width={13} height={13} />
@@ -57,6 +71,10 @@ export function MemoBubble({
         }`}
         {...press}
         onClick={() => {
+          if (selectable) {
+            onPick?.();
+            return;
+          }
           if (press.longPressed.current) {
             press.longPressed.current = false;
             return;

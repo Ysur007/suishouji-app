@@ -10,6 +10,7 @@ import { ChatsBody } from './ChatsSheet';
 import { DeviceNameBody, PasswordBody } from './AccountSecurity';
 import { DevicesBody } from './DevicesSheet';
 import { ExportBody } from './ExportSheet';
+import { ShareBody } from './ShareSheet';
 
 export function SheetHost() {
   const sheet = useUI((s) => s.sheet);
@@ -46,6 +47,7 @@ export function SheetHost() {
             {sheet.kind === 'device' && <DeviceNameBody onClose={close} />}
             {sheet.kind === 'devices' && <DevicesBody onClose={close} />}
             {sheet.kind === 'export' && <ExportBody onClose={close} />}
+            {sheet.kind === 'share' && <ShareBody memoIds={sheet.memoIds} onClose={close} />}
           </SheetFrame>
         )}
       </AnimatePresence>

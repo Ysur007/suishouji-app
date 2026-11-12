@@ -138,6 +138,8 @@ interface AppState {
 
   setGroups: (list: Group[]) => void;
   shareToGroup: (memoId: string, groupId: string) => void;
+  /** 批量分享：一次只提示一次，返回实际复制成功的条数 */
+  shareManyToGroup: (memoIds: string[], groupId: string) => number;
   setActiveSpace: (space: string) => void;
   setTab: (tab: Tab) => void;
   setFolderFilter: (id: string | null) => void;
@@ -505,34 +507,62 @@ export const useApp = create<AppState>((set, get) => ({
   /** 把一条个人记录复制到群里（原记录不动，群里是一份带 sharedFrom 的副本） */
   shareToGroup(memoId, groupId) {
     const s = get();
-    const memo = s.memos[memoId];
     const group = s.groups[groupId];
-    if (!memo || memo.deleted || !group) return;
+    if (!group) return;
     if (!s.user) {
       s.notify('登录后才能共享到群', 'error');
       return;
     }
+    const n = get().shareManyToGroup([memoId], groupId);
+    if (n === 0) s.notify('这条已经在群里了', 'error');
+  },
+
+  shareManyToGroup(memoIds, groupId) {
+    const s = get();
+    const group = s.groups[groupId];
+    if (!group || !s.user) return 0;
+
+    let done = 0;
     const now = Date.now();
-    const hlc = nextHLC();
-    const id = uid();
-    const copy: Memo = {
-      ...memo,
-      id,
-      spaceId: `g:${groupId}`,
-      folderId: null,
-      pinned: false,
-      createdAt: now,
-      updatedAt: now,
-      hlc,
-      ownerId: s.user.id,
-      ownerName: s.user.username,
-      authorId: s.clientId,
-      sharedFrom: memo.id,
-    };
-    emitOp(makeOp('memo', id, 'put', hlc, copy.spaceId as string, copy));
-    set((st) => ({ memos: { ...st.memos, [id]: copy } }));
-    persist();
-    get().notify(`已共享到「${group.name}」`);
+    const created: Record<string, Memo> = {};
+    // 群里已经有同一条（sharedFrom 相同）就跳过，重复分享不产生第二份副本
+    const already = new Set(
+      Object.values(s.memos)
+        .filter((m) => !m.deleted && m.sharedFrom && m.spaceId === `g:${groupId}`)
+        .map((m) => m.sharedFrom),
+    );
+
+    for (const memoId of memoIds) {
+      const memo = s.memos[memoId];
+      if (!memo || memo.deleted || already.has(memoId)) continue;
+      const hlc = nextHLC();
+      const id = uid();
+      const copy: Memo = {
+        ...memo,
+        id,
+        spaceId: `g:${groupId}`,
+        folderId: null,
+        pinned: false,
+        createdAt: now,
+        updatedAt: now,
+        hlc,
+        ownerId: s.user.id,
+        ownerName: s.user.username,
+        authorId: s.clientId,
+        sharedFrom: memo.id,
+      };
+      emitOp(makeOp('memo', id, 'put', hlc, copy.spaceId as string, copy));
+      created[id] = copy;
+      already.add(memoId);
+      done += 1;
+    }
+
+    if (done) {
+      set((st) => ({ memos: { ...st.memos, ...created } }));
+      persist();
+      get().notify(done === 1 ? `已共享到「${group.name}」` : `已把 ${done} 条共享到「${group.name}」`);
+    }
+    return done;
   },
 
   setGroups(list) {

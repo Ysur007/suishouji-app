@@ -1,10 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { filesToImages } from '../lib/image';
 import { liveFolders, useApp } from '../lib/store';
 import { IconClose, IconFolder, IconImage, IconSend } from './Icons';
 
-export function Composer() {
+export function Composer({ overlay }: { overlay?: ReactNode } = {}) {
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -66,6 +66,7 @@ export function Composer() {
   return (
     <div className="composer-wrap">
       <div className="composer-wrap__inner">
+        {overlay}
         <AnimatePresence>
           {images.length > 0 && (
             <motion.div

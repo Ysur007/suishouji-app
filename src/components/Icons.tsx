@@ -68,6 +68,18 @@ export function IconUsers(p: P) {
   );
 }
 
+/** 多选：两个带勾的方框 */
+export function IconSelect(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <rect x="3.5" y="4" width="7" height="7" rx="1.8" />
+      <path d="M5.6 7.5l1 1 1.6-1.8" />
+      <rect x="13.5" y="13" width="7" height="7" rx="1.8" />
+      <path d="M15.6 16.5l1 1 1.6-1.8" />
+    </svg>
+  );
+}
+
 export function IconShare(p: P) {
   return (
     <svg {...svgProps(p)}>

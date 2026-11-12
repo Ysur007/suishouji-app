@@ -5631,3 +5631,207 @@ textarea.field__input {
     padding-bottom: 2px;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * 记录页：回到最新 / 多选
+ * ------------------------------------------------------------------ */
+
+/* 离开底部才出现，挂在输入框右上方（composer-wrap__inner 是 relative） */
+.jumpLatest {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  z-index: 3;
+  transition: color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.jumpLatest:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+/* 多选时输入框换成操作条 */
+.selBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+
+.selBar__count {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.selBar__count b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.selBar__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.selBar__actions .btn {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+@media (max-width: 520px) {
+  .selBar__actions {
+    flex: 1;
+  }
+
+  .selBar__actions .btn {
+    flex: 1;
+    padding: 0 8px;
+  }
+}
+
+/* 气泡左侧的勾选圈 */
+.rowPick {
+  flex: none;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  color: transparent;
+  display: grid;
+  place-items: center;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.rowPick[data-on='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.row--pickable .bubble {
+  cursor: pointer;
+}
+
+.row--pickable .bubble__more {
+  display: none;
+}
+
+/*
+ * 多选时：没选中的整条压暗。
+ * 自己的气泡是深色的，描边看不出效果，只有「亮 / 暗」的对比才够快。
+ */
+/* 压暗的是气泡本身，不是 .row —— .row 是 framer-motion 的节点，
+ * 动画结束后它会写内联 opacity:1，CSS 上的 opacity 会被盖掉。 */
+.stream[data-selecting='true'] .row--pickable:not([data-picked='true']) .bubble,
+.stream[data-selecting='true'] .row--pickable:not([data-picked='true']) .avatar {
+  opacity: 0.35;
+  transition: opacity 0.16s ease;
+}
+
+/* 别人的浅色气泡再补一圈描边，自己的深色气泡靠圆点即可 */
+.row--pickable[data-picked='true'] .bubble {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink), var(--shadow-xs);
+}
+
+/* ------------------------------------------------------------------ *
+ * 分享到群
+ * ------------------------------------------------------------------ */
+
+.shareRow {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-family: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.shareRow:hover:not([disabled]) {
+  background: var(--surface-2);
+}
+
+.shareRow[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.shareRow__icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.shareRow__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shareRow__name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shareRow__sub {
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.shareRow__go {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.shareNew {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+/* 只有一个按钮的浮层底栏：不要拉通栏，靠右即可 */
+.sheet__actions--end {
+  justify-content: flex-end;
+}
+
+.sheet__actions--end .btn {
+  flex: 0 0 auto;
+  min-width: 96px;
+}

@@ -2,22 +2,20 @@ import type { Memo } from '../lib/types';
 import { useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
 import type { MenuAction } from './ContextMenu';
-import { IconCopy, IconEdit, IconFolder, IconPin, IconShare, IconTrash } from './Icons';
+import { IconCopy, IconEdit, IconFolder, IconPin, IconSelect, IconShare, IconTrash } from './Icons';
 
-export function memoActions(memo: Memo): MenuAction[] {
+/**
+ * 一条记录的右键动作。
+ *
+ * 「分享」只有一条入口：点开后再选目标群。之前是每个群占一行（最多四个），
+ * 群一多菜单就被「共享到…」灌满，看起来像重复项，其实是同一件事的不同选项。
+ */
+export function memoActions(memo: Memo, handlers?: { onMultiSelect?: () => void }): MenuAction[] {
   const open = useUI.getState().open;
   const state = useApp.getState();
   const groups = Object.values(state.groups);
   const inPersonal = (memo.spaceId ?? state.viewBucket) === state.viewBucket;
-  const shareActions: MenuAction[] =
-    inPersonal && groups.length
-      ? groups.slice(0, 4).map((g) => ({
-          key: `share-${g.id}`,
-          label: `共享到「${g.name}」`,
-          icon: <IconShare />,
-          onClick: () => state.shareToGroup(memo.id, g.id),
-        }))
-      : [];
+  const canShare = inPersonal && groups.length > 0;
 
   return [
     {
@@ -54,7 +52,22 @@ export function memoActions(memo: Memo): MenuAction[] {
       icon: <IconFolder />,
       onClick: () => open({ kind: 'editor', memoId: memo.id }),
     },
-    ...shareActions,
+    {
+      key: 'select',
+      label: '多选',
+      icon: <IconSelect />,
+      onClick: () => handlers?.onMultiSelect?.(),
+    },
+    ...(canShare
+      ? [
+          {
+            key: 'share',
+            label: '分享到…',
+            icon: <IconShare />,
+            onClick: () => open({ kind: 'share', memoIds: [memo.id] }),
+          } satisfies MenuAction,
+        ]
+      : []),
     {
       key: 'delete',
       label: '删除',
