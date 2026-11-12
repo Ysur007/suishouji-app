@@ -4226,6 +4226,24 @@ textarea.field__input {
   overflow-wrap: anywhere;
 }
 
+/* 别名下面是真实 id：不用它，排查时不知道到底发了哪个模型出去 */
+.aiStatusRaw {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 模型输入框下的别名提示 */
+.field__alias {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--ink-2);
+}
+
 .aiProbe {
   border-radius: 11px;
   border: 1px solid var(--line);
@@ -4251,6 +4269,24 @@ textarea.field__input {
   line-height: 1.6;
   color: var(--ink-3);
   overflow-wrap: anywhere;
+}
+
+/*
+ * 底部按钮是 sticky 的，会长在内容上面；出现测试结果块时（往往也是最长的状态），
+ * 最后一段会被按钮盖住且滚不出来。给它补一段等于按钮高度的下留白。
+ */
+.sheet:has(.aiProbe) {
+  padding-bottom: calc(64px + var(--safe-bottom));
+}
+
+/* DNS / 出口诊断：单独一块，和「为什么失败」分开看 */
+.aiProbe__diag {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+  color: var(--ink-4);
+  font-size: 11px;
 }
 
 /* --- 模型列表：输入框右侧一个「获取列表」，展开成可筛选的面板 --- */
@@ -4373,9 +4409,13 @@ textarea.field__input {
 }
 
 .aiModelPick__id {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  overflow-wrap: anywhere;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .aiModelPick__item[data-active='true'] .aiModelPick__id {
@@ -4383,9 +4423,14 @@ textarea.field__input {
 }
 
 .aiModelPick__label {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .aiModelPick__empty {

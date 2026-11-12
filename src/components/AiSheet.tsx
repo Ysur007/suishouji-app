@@ -22,6 +22,7 @@ import {
 } from '../lib/ai';
 import { useApp } from '../lib/store';
 import { useAi } from '../lib/aiui';
+import { hasAlias, modelAlias } from '../lib/model';
 import { IconCheck, IconSpark } from './Icons';
 import { LoginGate } from './LoginGate';
 
@@ -55,6 +56,14 @@ const PROVIDERS: Array<{ key: Provider; label: string; hint: string; base: strin
     model: 'gemini-1.5-flash',
   },
 ];
+
+/** 把「……。诊断：……」拆成两句 */
+function splitProbeError(raw: string): { head: string; diag?: string } {
+  const msg = friendlyError(raw);
+  const at = msg.indexOf('诊断：');
+  if (at < 0) return { head: msg };
+  return { head: msg.slice(0, at).replace(/。$/, ''), diag: msg.slice(at) };
+}
 
 export function AiSettingsBody({ onClose }: { onClose: () => void }) {
   const user = useApp((s) => s.user);
@@ -214,6 +223,10 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
     );
   }
 
+  // 失败时服务端会把「错误码 + 提示 + DNS 诊断」拼成一句，这里拆成两行，方便扫
+  const probeError =
+    probe && !probe.ok ? splitProbeError(probe.error ?? '未知错误') : null;
+
   return (
     <>
       <div className="sheet__title">AI 接入</div>
@@ -230,13 +243,16 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
                 ? `已接入 · ${active.label === '自动' ? labelOf(loaded.resolved) : active.label}`
                 : '未接入 · 使用本地引擎'}
             </div>
-            <div className="aiStatusSub">
+            <div className="aiStatusSub" title={loaded?.model || undefined}>
               {loaded?.hasKey
-                ? `${loaded.model}${loaded.keyHint ? ` · ${loaded.keyHint}` : ''}${
+                ? `${modelAlias(loaded.model)}${loaded.keyHint ? ` · ${loaded.keyHint}` : ''}${
                     loaded.source === 'env' ? ' · 来自环境变量（全站）' : ' · 来自界面配置（仅当前账号）'
                   }`
                 : '配置后会在服务端发起请求，密钥不会下发到浏览器；配置只对当前账号生效'}
             </div>
+            {loaded?.hasKey && hasAlias(loaded.model) ? (
+              <div className="aiStatusRaw">模型 id · {loaded.model}</div>
+            ) : null}
           </div>
         </div>
 
@@ -299,6 +315,11 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <div className="field__hint">
+            {model && hasAlias(model) ? (
+              <span className="field__alias">
+                显示为「{modelAlias(model)}」
+              </span>
+            ) : null}
             {modelsStale
               ? '地址改过了，重新获取一次才能对上号。'
               : models
@@ -333,8 +354,10 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
                       setProbe(null);
                     }}
                   >
-                    <span className="aiModelPick__id">{m.id}</span>
-                    {m.label !== m.id ? <span className="aiModelPick__label">{m.label}</span> : null}
+                    <span className="aiModelPick__id">{modelAlias(m.id)}</span>
+                    <span className="aiModelPick__label">
+                      {m.label !== m.id ? `${m.label} · ${m.id}` : m.id}
+                    </span>
                   </button>
                 ))}
                 {filteredModels.length === 0 ? (
@@ -384,9 +407,16 @@ export function AiSettingsBody({ onClose }: { onClose: () => void }) {
               {probe.ok ? `连接正常 · ${probe.latency} ms` : '连接失败'}
             </div>
             <div className="aiProbe__text">
-              {probe.ok
-                ? `${labelOf(probe.provider)} · ${probe.model} · 回声「${probe.sample}」`
-                : friendlyError(probe.error ?? '未知错误')}
+              {probe.ok ? (
+                `${labelOf(probe.provider)} · ${modelAlias(probe.model)} · 回声「${probe.sample}」`
+              ) : (
+                <>
+                  {probeError?.head}
+                  {probeError?.diag ? (
+                    <span className="aiProbe__diag">{probeError.diag}</span>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
         ) : null}

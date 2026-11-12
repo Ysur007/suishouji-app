@@ -1,6 +1,7 @@
 import { useAi } from '../lib/aiui';
 import { useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
+import { modelAlias } from '../lib/model';
 
 /**
  * 引擎标签：既是状态显示，也是配置入口。
@@ -23,12 +24,20 @@ export function EngineTag() {
     <button
       className="engineTag"
       data-engine={down ? 'down' : llm ? 'llm' : 'local'}
-      title={!auth ? '登录后可用，点此登录' : down ? '服务端 AI 接口不可用，点此查看' : '点击配置 API'}
+      title={
+        !auth
+          ? '登录后可用，点此登录'
+          : down
+            ? '服务端 AI 接口不可用，点此查看'
+            : llm && status?.model
+              ? `${modelAlias(status.model)}（${status.model}）· 点击配置`
+              : '点击配置 API'
+      }
       onClick={() => open({ kind: 'ai' })}
     >
       <i />
       <span className="engineTag__text">
-        {!auth ? '登录后可用' : down ? '未就绪 · 去配置' : llm ? `模型 · ${status?.model}` : '本地分析'}
+        {!auth ? '登录后可用' : down ? '未就绪 · 去配置' : llm ? `模型 · ${modelAlias(status?.model)}` : '本地分析'}
       </span>
     </button>
   );

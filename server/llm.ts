@@ -16,6 +16,7 @@
  * 之所以让文件优先，是因为界面上的「保存」必须真的生效，否则用户会以为配置没起作用。
  */
 
+import dns from 'node:dns/promises';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -267,16 +268,83 @@ function describeHttpError(status: number, raw: string): string {
   return `HTTP ${status}：${text.replace(/\s+/g, ' ').slice(0, 160) || '（无响应体）'}`;
 }
 
+/* ------------------------------------------------------------------ *
+ * 网络错误解释
+ *
+ * undici（Node 内置 fetch）在连不上时只抛一个 `TypeError: fetch failed`，
+ * 真正的原因放在 `err.cause.code` 里。不把它翻出来，界面上就只有「连接失败 /
+ * fetch failed」——用户既不知道是 DNS、防火墙还是证书，也不知道该改哪里。
+ *
+ * 光有错误码还不够：`ENETUNREACH` 可能是「域名只有 IPv6 而本机没有 IPv6 出口」，
+ * 也可能是「路由表没有这条」。所以再补一次 DNS 诊断，把 A / AAAA 的实际情况写出来。
+ * ------------------------------------------------------------------ */
+
+const NET_HINT: Record<string, string> = {
+  ENOTFOUND: '域名解析失败（DNS 查不到这个地址），检查接口地址是否写错',
+  EAI_AGAIN: 'DNS 暂时不可用，稍后重试',
+  ECONNREFUSED: '连接被拒绝：该端口没有服务在监听，或对方只放行特定来源 IP',
+  ENETUNREACH: '网络不可达：本机没有通往这个地址的路由',
+  EHOSTUNREACH: '主机不可达：路由到不了这台机器',
+  ETIMEDOUT: '连接超时：网络不通，或被防火墙 / 安全组拦了',
+  ECONNRESET: '连接被对方重置',
+  EPROTO: 'TLS 握手失败',
+  CERT_HAS_EXPIRED: 'HTTPS 证书已过期',
+  DEPTH_ZERO_SELF_SIGNED_CERT: 'HTTPS 证书是自签名的，校验不通过',
+  UNABLE_TO_VERIFY_LEAF_SIGNATURE: 'HTTPS 证书链不完整',
+  UND_ERR_CONNECT_TIMEOUT: '连接超时',
+  UND_ERR_SOCKET: '连接被中断',
+};
+
+/** 失败时补一条 DNS 诊断：这一句往往就是「具体原因」 */
+async function diagnoseHost(rawUrl: string): Promise<string> {
+  let host = '';
+  try {
+    host = new URL(rawUrl).hostname;
+  } catch {
+    return '';
+  }
+  if (!host || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return '';
+  const [v4, v6] = await Promise.all([
+    dns.resolve4(host).catch(() => [] as string[]),
+    dns.resolve6(host).catch(() => [] as string[]),
+  ]);
+  if (!v4.length && v6.length) {
+    return `诊断：${host} 只有 IPv6 记录（${v6[0]}），本机没有 IPv6 出口时必然连不上。换一个提供 IPv4 的地址，或给这台机器开 IPv6 / 走代理。`;
+  }
+  if (!v4.length && !v6.length) {
+    return `诊断：${host} 没有任何 A / AAAA 记录，域名可能写错或已失效。`;
+  }
+  return `诊断：${host} 解析到 IPv4 ${v4[0]}${v6.length ? `、IPv6 ${v6[0]}` : ''}，DNS 正常，问题在出口网络（防火墙 / 安全组 / 代理）。`;
+}
+
+/** 把 fetch 的异常翻成「能照着查」的一句话 */
+async function explainFetchError(err: unknown, url: string, timeoutMs: number): Promise<string> {
+  const e = err as Error & { cause?: { code?: string; message?: string } };
+  if (e?.name === 'AbortError' || e?.name === 'TimeoutError') {
+    return `请求超时：${Math.round(timeoutMs / 1000)} 秒内没有响应。检查网络，或换一个更近的接口地址。`;
+  }
+  const code = e?.cause?.code ?? '';
+  const hint = NET_HINT[code];
+  const head = code ? `连接失败（${code}）${hint ? `：${hint}` : `：${e.cause?.message ?? ''}`}` : `连接失败：${e.message}`;
+  const diag = await diagnoseHost(url);
+  return diag ? `${head}。${diag}` : head;
+}
+
 async function postJson(url: string, headers: Record<string, string>, body: unknown, timeoutMs = 45000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': 'suishouji/1.2', ...headers },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': 'suishouji/1.2', ...headers },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      throw new Error(await explainFetchError(err, url, timeoutMs));
+    }
     const text = await res.text();
     if (!res.ok) {
       throw new Error(describeHttpError(res.status, text));
@@ -297,11 +365,16 @@ async function getJson(url: string, headers: Record<string, string>, timeoutMs =
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { accept: 'application/json', 'user-agent': 'suishouji/1.2', ...headers },
-      signal: ctrl.signal,
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: { accept: 'application/json', 'user-agent': 'suishouji/1.2', ...headers },
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      throw new Error(await explainFetchError(err, url, timeoutMs));
+    }
     const text = await res.text();
     if (!res.ok) throw new Error(describeHttpError(res.status, text));
     if (!text) throw new Error('接口返回为空');
@@ -310,9 +383,6 @@ async function getJson(url: string, headers: Record<string, string>, timeoutMs =
     } catch {
       throw new Error(describeHttpError(res.status, text));
     }
-  } catch (err) {
-    if ((err as Error).name === 'AbortError') throw new Error('请求超时：列模型接口 20 秒没有响应');
-    throw err;
   } finally {
     clearTimeout(timer);
   }

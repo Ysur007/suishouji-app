@@ -391,6 +391,13 @@ JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeTyp
 第 3 条是刻意的：绝大多数网关（含自建）都是 OpenAI 兼容，认错时的代价也最小——只是路径不同，用户改一下地址即可。
 路径补全同样有兜底：地址已含 `/chat/completions` 就直接用，含 `/v1` 就补后半段，两者都没有就补 `/v1/chat/completions`。
 
+#### 模型显示名
+
+接口里的模型 id 是给机器看的：`trae-cn/deepseek-v4.1-flash-max`、`claude-3-5-sonnet-latest`。
+界面上一律显示成人能读的名字（`DeepSeek V4.1 Flash Max`、`Claude 3.5 Sonnet`），真实 id 放在它下面一行或
+`title` 里——发出去的仍然是原始 id，映射只影响显示（`src/lib/model.ts`）。认不出来的 id 会按词元拼
+（厂商 / 版本 / 规格），拼不出来就原样显示，绝不猜成别的模型。
+
 #### 存在哪、怎么保密
 
 - **按账号存**：`DATA_DIR/ai/<userId>/ai.json`，写入时 `mode: 0o600`。A 账号填的 Key 不会出现在 B 账号的界面里，
@@ -415,6 +422,30 @@ JSON 模式三种写法（`response_format` / 提示词约束 / `responseMimeTyp
 界面现在会把这类错误翻成人话（见 `friendlyError` / `describeHttpError`）：404 提示重启、401 提示 Key 无效、
 429 提示限流、5xx 提示服务商侧故障，不再把服务端原文或 HTML 源码直接抛给用户。
 引擎标签也会在接口不可用时显示「未就绪 · 去配置」，而不是假装本地分析可用。
+
+#### 「连接失败 · fetch failed」是什么
+
+这是 Node 内置 fetch（undici）的通用报错，**真正的原因在 `err.cause.code` 里**，以前被吞掉了，
+所以界面上只剩一句没用的 `fetch failed`。现在服务端会把它翻出来，并补一次 DNS 诊断：
+
+```
+连接失败（ENETUNREACH）：网络不可达：本机没有通往这个地址的路由
+诊断：magpie-api.example.xyz 只有 IPv6 记录（2409:…），本机没有 IPv6 出口时必然连不上。
+      换一个提供 IPv4 的地址，或给这台机器开 IPv6 / 走代理。
+```
+
+常见 `cause.code` 与含义：
+
+| code | 含义 | 怎么办 |
+| --- | --- | --- |
+| `ENOTFOUND` / `EAI_AGAIN` | DNS 查不到 / 暂时失败 | 地址写错，或换 DNS |
+| `ENETUNREACH` | 本机没有到该地址的路由 | 最常见的是**域名只有 AAAA（IPv6）而服务器没有 IPv6 出口** |
+| `ECONNREFUSED` | 端口没人监听 / 对方只放行特定 IP | 检查端口、白名单 |
+| `ETIMEDOUT` / `UND_ERR_CONNECT_TIMEOUT` | 连不上 | 防火墙、安全组、代理 |
+| `CERT_HAS_EXPIRED` / `DEPTH_ZERO_SELF_SIGNED_CERT` | 证书问题 | 换证书或换域名 |
+
+> 实测记录：`magpie-api.706030.xyz` 只有 IPv6 A 记录（公共 DNS 查 A 返回空），
+> 而服务端没有 IPv6 默认路由 → 必然 `ENETUNREACH`。这与 Key、模型名、请求参数都无关。
 
 #### 「连接失败 · HTTP 520」是什么
 
