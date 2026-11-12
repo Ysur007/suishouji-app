@@ -8,6 +8,7 @@
  * 面板不承载内容，只负责切换；内容永远在右边的主区。
  */
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   IconChat,
@@ -15,7 +16,9 @@ import {
   IconDownload,
   IconFolder,
   IconGear,
+  IconEdit,
   IconLayers,
+  IconLogout,
   IconPlus,
   IconRecord,
   IconSpace,
@@ -27,6 +30,7 @@ import {
 } from './Icons';
 import { SyncCard } from './SyncBadge';
 import { ACCT_SECTIONS, useAcctNav } from '../lib/acctnav';
+import { exportLocalBackup } from '../lib/backup';
 import { useAi } from '../lib/aiui';
 import { navigate, useRoute } from '../lib/router';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
@@ -84,15 +88,26 @@ const ACCT_ICONS: Record<string, React.ReactNode> = {
   'acct-about': <IconGear />,
 };
 
-/** 我的：分区导航（滚到哪段，面板里就亮哪段） */
+/**
+ * 我的：左面板 = 账号 + 常用操作 + 分区目录。
+ *
+ * 三个操作按「多久用一次」排：导出（换设备/备份）> 改密码 > 退出登录；
+ * 退出登录最危险也最少用，固定压在最后，并且两段确认。
+ * 窄屏没有面板，这三项仍在内容区里（用 `.acct-mobileOnly` 控制显隐）。
+ */
 function AccountPanel() {
   const user = useApp((s) => s.user);
   const lastUser = useApp((s) => s.lastUser);
   const auth = useApp((s) => s.auth);
   const memos = useApp((s) => s.memos);
+  const folders = useApp((s) => s.folders);
+  const notify = useApp((s) => s.notify);
+  const signOut = useApp((s) => s.signOut);
+  const openSheet = useUI((s) => s.open);
   const active = useAcctNav((s) => s.active);
   const goTo = useAcctNav((s) => s.goTo);
 
+  const [confirmOut, setConfirmOut] = useState(false);
   const me = user ?? lastUser;
   const count = liveMemos(memos).length;
 
@@ -113,6 +128,61 @@ function AccountPanel() {
               <span className="panel__sub">{auth ? '记录绑定在此账号下' : '记录只在本机'}</span>
             </div>
           </div>
+        </div>
+
+        <div className="panel__section">
+          <div className="panel__label">操作</div>
+          <button
+            className="panel__action"
+            title="导出一份 JSON 备份到本机下载目录"
+            onClick={() => exportLocalBackup(memos, folders, notify)}
+          >
+            <span className="panel__icon">
+              <IconDownload />
+            </span>
+            <span className="panel__name">导出备份</span>
+            <span className="panel__meta">JSON</span>
+          </button>
+
+          {auth ? (
+            <>
+              <button
+                className="panel__action"
+                title="改完其它设备上的登录会失效"
+                onClick={() => openSheet({ kind: 'password' })}
+              >
+                <span className="panel__icon">
+                  <IconEdit />
+                </span>
+                <span className="panel__name">修改密码</span>
+              </button>
+              <button
+                className="panel__action panel__action--danger"
+                data-confirm={confirmOut}
+                onClick={() => {
+                  if (!confirmOut) {
+                    setConfirmOut(true);
+                    window.setTimeout(() => setConfirmOut(false), 4000);
+                    return;
+                  }
+                  setConfirmOut(false);
+                  void signOut();
+                }}
+              >
+                <span className="panel__icon">
+                  <IconLogout />
+                </span>
+                <span className="panel__name">{confirmOut ? '确认退出？' : '退出登录'}</span>
+              </button>
+            </>
+          ) : (
+            <button className="panel__action" onClick={() => navigate('/login?next=/account')}>
+              <span className="panel__icon">
+                <IconUser />
+              </span>
+              <span className="panel__name">登录 / 注册</span>
+            </button>
+          )}
         </div>
 
         <div className="panel__section">

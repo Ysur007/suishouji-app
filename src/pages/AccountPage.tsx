@@ -13,9 +13,9 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { apiBase, apiUrl, defaultApiBase, setApiBase } from '../lib/endpoint';
-import { dayLabel, downloadJson } from '../lib/format';
-import { readAuth } from '../lib/auth';
+import { apiBase, defaultApiBase, setApiBase } from '../lib/endpoint';
+import { dayLabel } from '../lib/format';
+import { exportLocalBackup, exportServerBackup } from '../lib/backup';
 import { navigate } from '../lib/router';
 import { liveMemos, useApp } from '../lib/store';
 import { useAcctNav } from '../lib/acctnav';
@@ -88,38 +88,6 @@ export function AccountPage() {
 
   /* ---------------- 数据动作（沿用原实现，只换了位置） ---------------- */
 
-  const exportLocal = () => {
-    const records = [...Object.values(memos), ...Object.values(folders)].map((r) => ({
-      ...r,
-      entity: 'text' in r ? 'memo' : 'folder',
-    }));
-    downloadJson(`suishouji-${new Date().toISOString().slice(0, 10)}.json`, {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      records,
-    });
-    notify('本机备份已导出');
-  };
-
-  const exportServer = async () => {
-    const token = readAuth()?.token;
-    if (!token) {
-      notify('登录后才能导出服务端数据', 'error');
-      return;
-    }
-    try {
-      const res = await fetch(apiUrl('/api/export'), {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('导出失败');
-      const data = await res.json();
-      downloadJson(`suishouji-server-${new Date().toISOString().slice(0, 10)}.json`, data);
-      notify('已导出服务端完整数据');
-    } catch (err) {
-      notify((err as Error).message, 'error');
-    }
-  };
-
   const importFile = async (file: File) => {
     try {
       const parsed = JSON.parse(await file.text()) as { records?: Array<Record<string, unknown>> };
@@ -190,7 +158,7 @@ export function AccountPage() {
                 </div>
               </div>
 
-              <div className="idCard__actions">
+              <div className="idCard__actions acct-mobileOnly">
                 {auth ? (
                   <button
                     className="btn btn--ghost"
@@ -354,13 +322,14 @@ export function AccountPage() {
                 label="导出本机备份"
                 sub={`${memoCount} 条记录 · ${folderCount} 个文件夹`}
                 right="导出"
-                onClick={exportLocal}
+                className="acct-mobileOnly"
+                onClick={() => exportLocalBackup(memos, folders, notify)}
               />
               <Row
                 label="导出服务端数据"
                 sub={auth ? '整包导出账号下的记录与群' : '登录后可用'}
                 right="导出"
-                onClick={() => void exportServer()}
+                onClick={() => void exportServerBackup(notify)}
               />
               <Row
                 label="从备份导入"
@@ -396,6 +365,7 @@ export function AccountPage() {
                 sub={auth ? '改完其它设备上的登录会失效' : '登录后可修改'}
                 right={auth ? '修改' : '登录'}
                 nav
+                className="acct-mobileOnly"
                 onClick={() => (auth ? openSheet({ kind: 'password' }) : navigate('/login?next=/account'))}
               />
               <Row
@@ -505,6 +475,7 @@ function Row({
   right,
   onClick,
   nav,
+  className,
 }: {
   label: ReactNode;
   sub?: ReactNode;
@@ -512,6 +483,8 @@ function Row({
   onClick?: () => void;
   /** 会不会跳走 / 打开面板：动作类不给箭头，免得看着像能点进去看详情 */
   nav?: boolean;
+  /** 用来标记「只有窄屏才出现」这类行 */
+  className?: string;
 }) {
   const body = (
     <>
@@ -528,9 +501,10 @@ function Row({
     </>
   );
 
-  if (!onClick) return <div className="row row--static">{body}</div>;
+  const cls = className ? ` ${className}` : '';
+  if (!onClick) return <div className={`row row--static${cls}`}>{body}</div>;
   return (
-    <button className="row row--btn" onClick={onClick}>
+    <button className={`row row--btn${cls}`} onClick={onClick}>
       {body}
     </button>
   );

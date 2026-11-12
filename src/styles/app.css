@@ -5248,3 +5248,63 @@ textarea.field__input {
     order: 8;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * 我的 · 左面板的操作区
+ *
+ * 三个高频/低频动作按使用频次排，视觉上和「分区目录」区分开：
+ * 目录是「去哪」，操作是「做什么」。退出登录压在最后，确认时整行反白。
+ * ------------------------------------------------------------------ */
+
+.panel__action {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.panel__action:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.panel__action[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.panel__action .panel__meta {
+  margin-left: auto;
+}
+
+.panel__action--danger {
+  color: var(--ink-3);
+}
+
+.panel__action--danger[data-confirm='true'] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.panel__action--danger[data-confirm='true'] .panel__icon,
+.panel__action--danger[data-confirm='true'] .panel__name {
+  color: var(--on-ink);
+}
+
+/* 这三项在宽屏由左面板承载，内容区不再重复出现 */
+@media (min-width: 1025px) {
+  .acct-mobileOnly {
+    display: none;
+  }
+}

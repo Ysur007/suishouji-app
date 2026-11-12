@@ -141,6 +141,16 @@ export function IconBack(p: P) {
   );
 }
 
+export function IconLogout(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <path d="M9 4.5H6.5A2 2 0 0 0 4.5 6.5v11a2 2 0 0 0 2 2H9" />
+      <path d="M14 8.5 17.5 12 14 15.5" />
+      <path d="M9.5 12h8" />
+    </svg>
+  );
+}
+
 export function IconCopy(p: P) {
   return (
     <svg {...svgProps(p)}>
