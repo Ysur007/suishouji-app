@@ -88,9 +88,7 @@ export function FoldersView() {
         }
         actions={
           <>
-            <span className="topbar__sub" style={{ marginTop: 0 }}>
-              <SyncBadge />
-            </span>
+            <SyncBadge />
             <button className="text-btn" onClick={() => openSheet({ kind: 'new-folder' })}>
               <IconPlus />
               新建文件夹

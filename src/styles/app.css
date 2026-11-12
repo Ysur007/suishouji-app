@@ -225,65 +225,6 @@
  * 顶部标题栏
  * ------------------------------------------------------------------ */
 
-.topbar {
-  flex: none;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px var(--gutter) 10px;
-  position: relative;
-  z-index: 20;
-}
-
-.topbar::before {
-  content: '';
-  position: absolute;
-  inset: -1px -1px 0;
-  background: linear-gradient(180deg, rgba(242, 242, 242, 0.96) 30%, rgba(242, 242, 242, 0.72) 78%, rgba(242, 242, 242, 0) 100%);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  z-index: -1;
-  pointer-events: none;
-}
-
-.topbar__inner {
-  width: 100%;
-  max-width: var(--column-w);
-  margin: 0 auto;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.topbar__title {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 1.12;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.topbar__sub {
-  font-size: 12px;
-  color: var(--ink-3);
-  letter-spacing: 0.005em;
-  margin-top: 5px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-bottom: 2px;
-}
-
 .icon-btn {
   width: 36px;
   height: 36px;
@@ -1740,14 +1681,6 @@ textarea.field__input {
     display: block;
   }
 
-  .topbar {
-    padding-top: calc(14px + env(safe-area-inset-top, 0px));
-  }
-
-  .topbar__title {
-    font-size: 26px;
-  }
-
   .composer-wrap {
     padding-bottom: 8px;
   }
@@ -1798,10 +1731,6 @@ textarea.field__input {
 @media (max-width: 420px) {
   :root {
     --gutter: 16px;
-  }
-
-  .topbar__title {
-    font-size: 24px;
   }
 
   .bubble {
@@ -2400,22 +2329,20 @@ textarea.field__input {
 }
 
 /* 顶栏标题作为空间切换入口 */
-.topbar__title--btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+/* 可点的标题（用来切空间）：hover 才显出「这是按钮」 */
+.aiHead__title--btn {
   cursor: pointer;
   border-radius: 10px;
   margin-left: -6px;
-  padding: 2px 6px 2px 6px;
+  padding: 2px 6px;
   transition: background 0.16s ease;
 }
 
-.topbar__title--btn:hover {
+.aiHead__title--btn:hover {
   background: rgba(10, 10, 10, 0.045);
 }
 
-.topbar__title-chev {
+.aiHead__title-chev {
   opacity: 0.35;
   flex: none;
 }
@@ -5561,5 +5488,34 @@ textarea.field__input {
 
   .aboutToggle {
     display: flex;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 记录页页头：复用 .aiHead，只补两点
+ * ------------------------------------------------------------------ */
+
+/* 说明行里有多个 span（问候语 · 条数 · 同步徽标），要能换行 */
+.aiHead__desc--row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/*
+ * 这页右侧只有图标按钮，没有引擎标签那种长文本。
+ * 手机上不需要像对话页那样折成两行——挤一行更省高度，标题也不会孤零零占一整行。
+ */
+@media (max-width: 720px) {
+  .aiHead--record {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  .aiHead--record .aiHead__side {
+    margin-left: auto;
+    padding-bottom: 2px;
   }
 }
