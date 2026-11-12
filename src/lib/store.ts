@@ -125,7 +125,10 @@ interface AppState {
   clearCache: () => Promise<void>;
 
   addMemo: (input: { text: string; images?: string[]; folderId?: string | null }) => string;
-  updateMemo: (id: string, patch: Partial<Pick<Memo, 'text' | 'folderId' | 'images' | 'pinned'>>) => void;
+  updateMemo: (
+    id: string,
+    patch: Partial<Pick<Memo, 'text' | 'folderId' | 'images' | 'pinned' | 'todoDone'>>,
+  ) => void;
   deleteMemo: (id: string) => void;
   togglePin: (id: string) => void;
 

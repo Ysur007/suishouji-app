@@ -12,7 +12,7 @@ import { EngineTag } from '../components/EngineTag';
 import { useAi } from '../lib/aiui';
 import { liveMemos, useApp } from '../lib/store';
 import { useUI } from '../lib/ui';
-import { IconSpark } from '../components/Icons';
+import { IconCheck, IconSpark } from '../components/Icons';
 import { LoginGate } from '../components/LoginGate';
 
 const RANGES: Array<{ label: string; days: number | null }> = [
@@ -218,7 +218,23 @@ function ReportView({
   onOpen: (memoId: string, label: string) => void;
 }) {
   const memos = useApp((s) => s.memos);
+  const updateMemo = useApp((s) => s.updateMemo);
+  const notify = useApp((s) => s.notify);
   const total = report.overview.total;
+  const doneCount = report.todos.filter((t) => memos[t.memoId]?.todoDone?.[t.text]).length;
+
+  /** 勾选状态写在记录上（不是 localStorage）：换设备、换浏览器都还在 */
+  const toggleTodo = (memoId: string, text: string) => {
+    const memo = memos[memoId];
+    if (!memo) {
+      notify('这条记录已经删除了', 'error');
+      return;
+    }
+    const next = { ...(memo.todoDone ?? {}) };
+    if (next[text]) delete next[text];
+    else next[text] = Date.now();
+    updateMemo(memoId, { todoDone: next });
+  };
 
   if (report.empty) {
     return (
@@ -325,20 +341,40 @@ function ReportView({
         <section className="orgSection">
           <div className="orgSection__head">
             <h2>待办</h2>
-            <span className="orgSection__hint">从记录里读出的动作项，点开可改</span>
+            <span className="orgSection__hint">
+              {doneCount ? `${doneCount}/${report.todos.length} 已完成 · ` : ''}
+              勾选即完成，点文字可改原文
+            </span>
           </div>
           <div className="todoList">
-            {report.todos.map((t) => (
-              <button
-                key={`${t.memoId}-${t.text.slice(0, 8)}`}
-                className="todo"
-                onClick={() => void onOpen(t.memoId, t.text)}
-              >
-                <span className="todo__box" aria-hidden />
-                <span className="todo__text">{t.text}</span>
-                {t.cue ? <span className="todo__cue">{t.cue}</span> : null}
-              </button>
-            ))}
+            {report.todos.map((t) => {
+              const done = Boolean(memos[t.memoId]?.todoDone?.[t.text]);
+              return (
+                <div
+                  key={`${t.memoId}-${t.text.slice(0, 8)}`}
+                  className={done ? 'todo todo--done' : 'todo'}
+                >
+                  <button
+                    className="todo__box"
+                    role="checkbox"
+                    aria-checked={done}
+                    aria-label={done ? `把「${t.text}」标回未完成` : `把「${t.text}」标为完成`}
+                    title={done ? '取消完成' : '标记完成'}
+                    onClick={() => toggleTodo(t.memoId, t.text)}
+                  >
+                    {done ? <IconCheck width={11} height={11} /> : null}
+                  </button>
+                  <button
+                    className="todo__text"
+                    onClick={() => void onOpen(t.memoId, t.text)}
+                    title="打开这条记录"
+                  >
+                    {t.text}
+                  </button>
+                  {t.cue ? <span className="todo__cue">{t.cue}</span> : null}
+                </div>
+              );
+            })}
           </div>
         </section>
       ) : null}

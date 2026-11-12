@@ -13,6 +13,11 @@ export interface Memo {
   spaceId?: string;
   /** 由哪条记录共享而来（群里的副本指向原记录） */
   sharedFrom?: string;
+  /**
+   * 整理页里「待办」的勾选状态：动作项文本 → 完成时间。
+   * 存在记录上而不是 localStorage，是为了换设备 / 换浏览器时勾选还在（跟着 op 同步）。
+   */
+  todoDone?: Record<string, number>;
   text: string;
   images: string[];
   folderId: string | null;
