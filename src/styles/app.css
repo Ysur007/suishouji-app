@@ -3126,19 +3126,6 @@ textarea.field__input {
   background: var(--surface-3);
 }
 
-/*
- * 「我的」的分区目录：这是「我在哪一段」，和记录页的视图一样属于选中态，
- * 按设计约定走反白，而不是列表项的浅灰。
- */
-.panel__row--nav[data-active='true'] {
-  background: var(--ink);
-}
-
-.panel__row--nav[data-active='true'] .panel__name,
-.panel__row--nav[data-active='true'] .panel__icon {
-  color: var(--on-ink);
-}
-
 .panel__rowMain {
   flex: 1;
   min-width: 0;
@@ -3151,14 +3138,6 @@ textarea.field__input {
 .panel__rowMain .panel__name {
   font-size: 13px;
   color: var(--ink);
-}
-
-/* 带图标的分区行：图标与文字同一行，文字仍然可以省略号 */
-.panel__nameRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
 }
 
 .panel__sub {
@@ -4817,11 +4796,6 @@ textarea.field__input {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-}
-
-/* 从面板跳过来时，分区标题不要正好贴着顶部 */
-.acctScroll [id^='acct-'] {
-  scroll-margin-top: 12px;
 }
 
 /* ---------------------------- 身份头 ---------------------------- */

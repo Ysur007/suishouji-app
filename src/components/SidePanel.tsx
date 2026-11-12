@@ -12,24 +12,20 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   IconChat,
-  IconDevice,
   IconDownload,
   IconFolder,
-  IconGear,
   IconEdit,
   IconLayers,
   IconLogout,
   IconPlus,
   IconRecord,
   IconSpace,
-  IconSpark,
   IconTimeline,
   IconTrash,
   IconUser,
   IconUsers,
 } from './Icons';
 import { SyncCard } from './SyncBadge';
-import { ACCT_SECTIONS, useAcctNav } from '../lib/acctnav';
 import { exportLocalBackup } from '../lib/backup';
 import { useAi } from '../lib/aiui';
 import { navigate, useRoute } from '../lib/router';
@@ -77,19 +73,11 @@ export function SidePanel() {
   );
 }
 
-/** 我的：分区图标注（和记录面板一样，每行都有图标，扫起来更快） */
-const ACCT_ICONS: Record<string, React.ReactNode> = {
-  'acct-stats': <IconLayers />,
-  'acct-groups': <IconUsers />,
-  'acct-data': <IconDownload />,
-  'acct-device': <IconDevice />,
-  'acct-recent': <IconRecord />,
-  'acct-ai': <IconSpark />,
-  'acct-about': <IconGear />,
-};
-
 /**
- * 我的：左面板 = 账号 + 常用操作 + 分区目录。
+ * 我的：左面板 = 账号 + 常用操作。
+ *
+ * 之前的「分区目录」删掉了：它只是把右边已经写着的分类再抄一遍，
+ * 点过去也只是滚一下——面板应该放「能做成的事」，不是内容的目录。
  *
  * 三个操作按「多久用一次」排：导出（换设备/备份）> 改密码 > 退出登录；
  * 退出登录最危险也最少用，固定压在最后，并且两段确认。
@@ -104,8 +92,6 @@ function AccountPanel() {
   const notify = useApp((s) => s.notify);
   const signOut = useApp((s) => s.signOut);
   const openSheet = useUI((s) => s.open);
-  const active = useAcctNav((s) => s.active);
-  const goTo = useAcctNav((s) => s.goTo);
 
   const [confirmOut, setConfirmOut] = useState(false);
   const me = user ?? lastUser;
@@ -183,20 +169,6 @@ function AccountPanel() {
               <span className="panel__name">登录 / 注册</span>
             </button>
           )}
-        </div>
-
-        <div className="panel__section">
-          <div className="panel__label">分区</div>
-          {ACCT_SECTIONS.map((sec) => (
-            <div key={sec.id} className="panel__row panel__row--nav" data-active={active === sec.id}>
-              <button className="panel__rowMain" onClick={() => goTo(sec.id)}>
-                <span className="panel__nameRow">
-                  <span className="panel__icon">{ACCT_ICONS[sec.id]}</span>
-                  <span className="panel__name">{sec.label}</span>
-                </span>
-              </button>
-            </div>
-          ))}
         </div>
       </div>
     </>
