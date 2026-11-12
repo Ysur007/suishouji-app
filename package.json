@@ -17,6 +17,9 @@
     "build:android": "npm run build && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.3",
+    "@capacitor/app": "^6.0.3",
+    "@capacitor/core": "^6.2.3",
     "framer-motion": "^11.15.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -25,12 +28,15 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.3",
+    "@electron/packager": "^18.4.4",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
+    "electron": "^31.7.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   },

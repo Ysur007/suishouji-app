@@ -10,6 +10,7 @@ import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
 import { sync } from './lib/sync';
 import { useRoute } from './lib/router';
+import { initBackButton } from './lib/backbutton';
 import { LoginPage } from './pages/LoginPage';
 import { AccountPage } from './pages/AccountPage';
 import { persistNow, useApp } from './lib/store';
@@ -25,6 +26,7 @@ export default function App() {
   const prevTab = useRef<Tab>(tab);
 
   useEffect(() => {
+    initBackButton();
     // 必须等 hydrate 把登录态读进来再连同步，否则首帧 auth 为 null 会直接进游客分支、永不重连
     let alive = true;
     void (async () => {
