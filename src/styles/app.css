@@ -282,11 +282,27 @@
   padding: 6px 0 26px;
 }
 
+/*
+ * 按天分组的日期行：两侧各一条细线，中间是「今天 / 昨天 / 4 月 3 日」。
+ * 分隔只发生在这里——每条消息之间不再画线（那条线是从「我的」页的 .row 漏过来的）。
+ */
 .day {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin: 20px 0 8px;
+  gap: 12px;
+  margin: 22px 0 10px;
+}
+
+.day::before,
+.day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.stream > .day:first-child {
+  margin-top: 4px;
 }
 
 .day__text {
@@ -4924,7 +4940,7 @@ textarea.field__input {
 
 /* ---------------------------- 行 ---------------------------- */
 
-.row {
+.secCard > .row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -4944,36 +4960,36 @@ textarea.field__input {
   border-bottom: 0;
 }
 
-.row--btn {
+.secCard > .row--btn {
   cursor: pointer;
   transition: background 0.14s ease;
 }
 
-.row--btn:hover {
+.secCard > .row--btn:hover {
   background: var(--surface-2);
 }
 
-.row--btn:active {
+.secCard > .row--btn:active {
   background: var(--surface-3);
 }
 
-.row--static {
+.secCard > .row--static {
   cursor: default;
 }
 
-.row--split {
+.secCard > .row--split {
   gap: 10px;
   padding-right: 10px;
 }
 
-.row--stack {
+.secCard > .row--stack {
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
   padding: 12px 14px;
 }
 
-.row__main {
+.secCard .row__main {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -4981,7 +4997,7 @@ textarea.field__input {
   gap: 2px;
 }
 
-.row__main--btn {
+.secCard .row__main--btn {
   border: 0;
   background: none;
   padding: 0;
@@ -4991,13 +5007,13 @@ textarea.field__input {
   cursor: pointer;
 }
 
-.row__main--btn:hover .row__label {
+.secCard .row__main--btn:hover .row__label {
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
 }
 
-.row__label {
+.secCard .row__label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -5008,14 +5024,14 @@ textarea.field__input {
   white-space: nowrap;
 }
 
-.row__sub {
+.secCard .row__sub {
   font-size: 11.5px;
   line-height: 1.55;
   color: var(--ink-3);
   overflow-wrap: anywhere;
 }
 
-.row__right {
+.secCard .row__right {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -5025,21 +5041,21 @@ textarea.field__input {
   font-variant-numeric: tabular-nums;
 }
 
-.row__chev {
+.secCard .row__chev {
   color: var(--ink-4);
   margin-right: -2px;
 }
 
-.row__muted {
+.secCard .row__muted {
   color: var(--ink-4);
 }
 
-.row__icon {
+.secCard .row__icon {
   flex: none;
   color: var(--ink-4);
 }
 
-.row__action {
+.secCard .row__action {
   flex: none;
   padding: 6px 11px;
   border-radius: 9px;
@@ -5052,24 +5068,24 @@ textarea.field__input {
   transition: border-color 0.14s ease, color 0.14s ease;
 }
 
-.row__action:hover {
+.secCard .row__action:hover {
   border-color: var(--ink);
   color: var(--ink);
 }
 
-.row__form {
+.secCard .row__form {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.row__form .field__input {
+.secCard .row__form .field__input {
   flex: 1;
   min-width: 160px;
 }
 
-.row__form .btn {
+.secCard .row__form .btn {
   flex: none;
   height: 34px;
   padding: 0 12px;
@@ -5079,7 +5095,7 @@ textarea.field__input {
 /* ---------------------------- 窄屏 ---------------------------- */
 
 @media (max-width: 720px) {
-  .row {
+  .secCard > .row {
     min-height: 54px;
     padding: 12px 14px;
   }
@@ -5203,8 +5219,13 @@ textarea.field__input {
   color: var(--on-ink);
 }
 
-/* 这三项在宽屏由左面板承载，内容区不再重复出现 */
+/* 这三项在宽屏由左面板承载，内容区不再重复出现。
+ * 选择器要和 `.secCard > .row` 同权重，否则会被它的 display:flex 盖掉。 */
 @media (min-width: 1025px) {
+  .secCard > .row.acct-mobileOnly {
+    display: none;
+  }
+
   .acct-mobileOnly {
     display: none;
   }
@@ -5477,7 +5498,7 @@ textarea.field__input {
  * 关于：手机端默认收起（读一次就够的内容不该占一屏滚动）
  * ------------------------------------------------------------------ */
 
-.aboutToggle {
+.secCard > .row.aboutToggle {
   display: none;
 }
 
@@ -5486,7 +5507,7 @@ textarea.field__input {
     display: none;
   }
 
-  .aboutToggle {
+  .secCard > .row.aboutToggle {
     display: flex;
   }
 }
