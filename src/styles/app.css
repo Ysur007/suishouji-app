@@ -471,8 +471,9 @@
   object-fit: contain;
   border-radius: 13px;
   display: block;
-  /* 不垫底色——透明 PNG 的透明区就会露出气泡本身，而不是一块灰/黑 */
-  background: transparent;
+  /* 自己发的气泡是黑底，透明图直接透出来会像"加了黑边"；垫一层白底，
+     透明 PNG 就落在白底上，跟原图看到的一样 */
+  background: #fff;
   cursor: zoom-in;
 }
 
@@ -2741,4 +2742,29 @@ textarea.field__input {
 .lightbox__close svg {
   width: 18px;
   height: 18px;
+}
+
+/* 纯图片的气泡：去掉内边距和底色，让图片本身当气泡，不要再套一圈黑边 */
+.bubble--media {
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  border-radius: 18px;
+}
+
+.bubble--media .bubble__images {
+  margin-top: 0;
+}
+
+.bubble--media .bubble__img {
+  border-radius: 18px;
+}
+
+.bubble--media .bubble__more {
+  opacity: 0;
+}
+
+.bubble--media:hover .bubble__more {
+  opacity: 1;
 }

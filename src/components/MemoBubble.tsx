@@ -52,7 +52,9 @@ export function MemoBubble({
       <div className="row__main">
         {side === 'them' && authorLabel ? <div className="row__author">{authorLabel}</div> : null}
       <div
-        className={`bubble${fresh ? ' bubble--just' : ''}`}
+        className={`bubble${fresh ? ' bubble--just' : ''}${
+          memo.text.trim() === '' && memo.images.length > 0 ? ' bubble--media' : ''
+        }`}
         {...press}
         onClick={() => {
           if (press.longPressed.current) {
