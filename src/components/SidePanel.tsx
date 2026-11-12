@@ -11,17 +11,22 @@
 import { motion } from 'framer-motion';
 import {
   IconChat,
+  IconDevice,
+  IconDownload,
   IconFolder,
+  IconGear,
   IconLayers,
   IconPlus,
   IconRecord,
   IconSpace,
+  IconSpark,
   IconTimeline,
   IconTrash,
   IconUser,
   IconUsers,
 } from './Icons';
 import { SyncCard } from './SyncBadge';
+import { ACCT_SECTIONS, useAcctNav } from '../lib/acctnav';
 import { useAi } from '../lib/aiui';
 import { navigate, useRoute } from '../lib/router';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
@@ -52,11 +57,79 @@ export function SidePanel() {
 
   return (
     <aside className="panel">
-      {route === '/organize' ? <OrganizePanel /> : route === '/chat' ? <ChatPanel /> : <RecordPanel />}
+      {route === '/organize' ? (
+        <OrganizePanel />
+      ) : route === '/chat' ? (
+        <ChatPanel />
+      ) : route === '/account' ? (
+        <AccountPanel />
+      ) : (
+        <RecordPanel />
+      )}
       <div className="panel__foot">
         <SyncCard />
       </div>
     </aside>
+  );
+}
+
+/** 我的：分区图标注（和记录面板一样，每行都有图标，扫起来更快） */
+const ACCT_ICONS: Record<string, React.ReactNode> = {
+  'acct-stats': <IconLayers />,
+  'acct-groups': <IconUsers />,
+  'acct-data': <IconDownload />,
+  'acct-device': <IconDevice />,
+  'acct-recent': <IconRecord />,
+  'acct-ai': <IconSpark />,
+  'acct-about': <IconGear />,
+};
+
+/** 我的：分区导航（滚到哪段，面板里就亮哪段） */
+function AccountPanel() {
+  const user = useApp((s) => s.user);
+  const lastUser = useApp((s) => s.lastUser);
+  const auth = useApp((s) => s.auth);
+  const memos = useApp((s) => s.memos);
+  const active = useAcctNav((s) => s.active);
+  const goTo = useAcctNav((s) => s.goTo);
+
+  const me = user ?? lastUser;
+  const count = liveMemos(memos).length;
+
+  return (
+    <>
+      <PanelHead label="我的" count={count ? `${count} 条` : undefined} />
+
+      <div className="panel__scroll">
+        {/* 账号是「我是谁」，不是目录里的一段，所以只展示、不参与选中 */}
+        <div className="panel__section">
+          <div className="panel__label">账号</div>
+          <div className="panel__row">
+            <div className="panel__rowMain">
+              <span className="panel__name">
+                {me ? `@${me.username}` : '未登录'}
+                {auth ? '' : me ? ' · 已退出' : ''}
+              </span>
+              <span className="panel__sub">{auth ? '记录绑定在此账号下' : '记录只在本机'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel__section">
+          <div className="panel__label">分区</div>
+          {ACCT_SECTIONS.map((sec) => (
+            <div key={sec.id} className="panel__row panel__row--nav" data-active={active === sec.id}>
+              <button className="panel__rowMain" onClick={() => goTo(sec.id)}>
+                <span className="panel__nameRow">
+                  <span className="panel__icon">{ACCT_ICONS[sec.id]}</span>
+                  <span className="panel__name">{sec.label}</span>
+                </span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }
 

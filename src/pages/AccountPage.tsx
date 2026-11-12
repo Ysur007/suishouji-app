@@ -18,6 +18,7 @@ import { dayLabel, downloadJson } from '../lib/format';
 import { readAuth } from '../lib/auth';
 import { navigate } from '../lib/router';
 import { liveMemos, useApp } from '../lib/store';
+import { useAcctNav } from '../lib/acctnav';
 import { useAi } from '../lib/aiui';
 import { useUI } from '../lib/ui';
 import { IconChevron, IconPlus, IconUser, IconUsers } from '../components/Icons';
@@ -42,12 +43,21 @@ export function AccountPage() {
   const setActiveSpace = useApp((s) => s.setActiveSpace);
   const openSheet = useUI((s) => s.open);
   const aiStatus = useAi((s) => s.status);
+  const navRequest = useAcctNav((s) => s.request);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const refreshAi = useAi((s) => s.refreshStatus);
 
   // 这页要显示引擎状态，进页面时主动取一次（其他页面也是这么做的）
   useEffect(() => {
     void refreshAi();
   }, [refreshAi]);
+
+  // 面板点击 → 滚到对应分区
+  useEffect(() => {
+    if (!navRequest) return;
+    const el = document.getElementById(navRequest.id);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [navRequest]);
 
   const [confirmOut, setConfirmOut] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -149,7 +159,7 @@ export function AccountPage() {
         </div>
       </header>
 
-      <div className="acctScroll">
+      <div className="acctScroll" ref={scrollRef}>
         <div className="acctCols">
           <div className="acctCol">
             <section className="idCard">
@@ -205,7 +215,7 @@ export function AccountPage() {
               </div>
             </section>
 
-            <section className="sec sec--stats">
+            <section id="acct-stats" className="sec sec--stats">
               <div className="secHead">
                 <span className="secHead__title">概览</span>
                 <span className="secHead__meta">本机缓存</span>
@@ -231,6 +241,7 @@ export function AccountPage() {
             </section>
 
             <Section
+              id="acct-recent"
               className="sec--recent"
               title="最近记录"
               head={recent.length ? <span className="secHead__meta">最新 {recent.length} 条</span> : undefined}
@@ -259,7 +270,8 @@ export function AccountPage() {
               )}
             </Section>
 
-            <Section className="sec--ai" title="AI 引擎">
+            <Section id="acct-ai"
+              className="sec--ai" title="AI 引擎">
               <Row
                 label={auth ? aiLabel(aiStatus) : '登录后可用'}
                 sub={
@@ -274,7 +286,8 @@ export function AccountPage() {
               />
             </Section>
 
-            <Section className="sec--about" title="关于">
+            <Section id="acct-about"
+              className="sec--about" title="关于">
               <Row label="版本" sub="随手记 · 像发消息一样记笔记" right={`v${__APP_VERSION__}`} />
               <Row label="数据存在哪" sub="服务器上一个 JSON 文件（data/db.json），随时可整包拷走" />
               <Row label="安全说明" sub="凭证存本机；服务端可读，未做端到端加密；公网部署请用 HTTPS" />
@@ -283,6 +296,7 @@ export function AccountPage() {
 
           <div className="acctCol">
             <Section
+              id="acct-groups"
               className="sec--groups"
               title="共享空间"
               head={
@@ -334,7 +348,8 @@ export function AccountPage() {
               )}
             </Section>
 
-            <Section className="sec--data" title="数据与备份">
+            <Section id="acct-data"
+              className="sec--data" title="数据与备份">
               <Row
                 label="导出本机备份"
                 sub={`${memoCount} 条记录 · ${folderCount} 个文件夹`}
@@ -367,7 +382,8 @@ export function AccountPage() {
               />
             </Section>
 
-            <Section className="sec--device" title="本机与服务">
+            <Section id="acct-device"
+              className="sec--device" title="本机与服务">
               <Row
                 label={deviceName}
                 sub={`设备 ID · ${clientId.slice(0, 8)}… · ${platform}`}
@@ -460,18 +476,20 @@ function aiLabel(status: { configured: boolean; model: string } | null): string 
 }
 
 function Section({
+  id,
   title,
   head,
   className,
   children,
 }: {
+  id?: string;
   title: string;
   head?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className={className ? `sec ${className}` : 'sec'}>
+    <section id={id} className={className ? `sec ${className}` : 'sec'}>
       <div className="secHead">
         <span className="secHead__title">{title}</span>
         {head}

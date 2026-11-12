@@ -109,9 +109,9 @@ export default function App() {
   const isAccount = route === '/account';
 
   return (
-    <div className={`app${isAccount ? ' app--noPanel' : ''}`}>
+    <div className="app">
       <Rail />
-      {isAccount ? null : <SidePanel />}
+      <SidePanel />
       <main className="stage">
         {isAccount ? (
           <AccountPage />
