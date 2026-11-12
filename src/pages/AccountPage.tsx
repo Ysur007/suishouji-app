@@ -14,7 +14,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { apiBase, apiUrl, defaultApiBase, setApiBase } from '../lib/endpoint';
-import { downloadJson } from '../lib/format';
+import { dayLabel, downloadJson } from '../lib/format';
 import { readAuth } from '../lib/auth';
 import { navigate } from '../lib/router';
 import { liveMemos, useApp } from '../lib/store';
@@ -64,6 +64,17 @@ export function AccountPage() {
   const folderCount = Object.values(folders).filter((f) => !f.deleted).length;
   const countOf = (space: string) =>
     liveMemos(memos).filter((m) => (m.spaceId ?? viewBucket) === space).length;
+
+  // 概览与「最近记录」都用本机这份 store，口径和记录页 / 整理页一致，不是另算一套
+  const recent = useMemo(
+    () =>
+      liveMemos(memos)
+        .filter((m) => m.text.trim())
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 3),
+    [memos],
+  );
+  const deviceCount = Math.max(sync.peers.length, 1);
 
   /* ---------------- 数据动作（沿用原实现，只换了位置） ---------------- */
 
@@ -193,6 +204,60 @@ export function AccountPage() {
                 )}
               </div>
             </section>
+
+            <section className="sec sec--stats">
+              <div className="secHead">
+                <span className="secHead__title">概览</span>
+                <span className="secHead__meta">本机缓存</span>
+              </div>
+              <div className="orgStats acctStats">
+                <div className="stat">
+                  <div className="stat__n">{memoCount}</div>
+                  <div className="stat__l">条记录</div>
+                </div>
+                <div className="stat">
+                  <div className="stat__n">{folderCount}</div>
+                  <div className="stat__l">个文件夹</div>
+                </div>
+                <div className="stat">
+                  <div className="stat__n">{list.length}</div>
+                  <div className="stat__l">个群</div>
+                </div>
+                <div className="stat">
+                  <div className="stat__n">{deviceCount}</div>
+                  <div className="stat__l">台在线</div>
+                </div>
+              </div>
+            </section>
+
+            <Section
+              className="sec--recent"
+              title="最近记录"
+              head={recent.length ? <span className="secHead__meta">最新 {recent.length} 条</span> : undefined}
+            >
+              {recent.length === 0 ? (
+                <div className="row row--static">
+                  <span className="row__main">
+                    <span className="row__label">还没有文字记录</span>
+                    <span className="row__sub">在记录页写一条，这里会显示最近三条。</span>
+                  </span>
+                </div>
+              ) : (
+                recent.map((m) => (
+                  <button
+                    key={m.id}
+                    className="pick pick--row"
+                    onClick={() => openSheet({ kind: 'editor', memoId: m.id })}
+                  >
+                    <span className="pick__date">{dayLabel(m.createdAt)}</span>
+                    <span className="pick__text">
+                      {m.text.replace(/\s+/g, ' ').slice(0, 40)}
+                      {m.text.length > 40 ? '…' : ''}
+                    </span>
+                  </button>
+                ))
+              )}
+            </Section>
 
             <Section className="sec--ai" title="AI 引擎">
               <Row

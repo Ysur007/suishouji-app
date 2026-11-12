@@ -4935,6 +4935,12 @@ textarea.field__input {
   color: var(--ink-4);
 }
 
+.secHead__meta {
+  font-size: 11px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
 .secHead__link {
   display: inline-flex;
   align-items: center;
@@ -4963,6 +4969,37 @@ textarea.field__input {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow-xs);
+}
+
+/* 概览：直接复用整理页的 .orgStats / .stat（数字 + 标签，1px 分隔），只把圆角和间距对齐本页 */
+.acctStats {
+  margin-bottom: 0;
+  border-radius: 16px;
+}
+
+/* 「最近记录」用整理页摘录那条样式（日期 + 一段文本），改成整行可点 */
+.secCard .pick--row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.secCard .pick--row:last-child {
+  border-bottom: 0;
+}
+
+.secCard .pick--row:hover {
+  background: var(--surface-2);
 }
 
 /* ---------------------------- 行 ---------------------------- */
@@ -5127,6 +5164,10 @@ textarea.field__input {
     padding: 12px 14px;
   }
 
+  .acctStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   /* 分区标题吸顶：滚到一半也知道自己在哪个区 */
   .secHead {
     position: sticky;
@@ -5166,19 +5207,25 @@ textarea.field__input {
   .idCard {
     order: 1;
   }
-  .sec--groups {
+  .sec--stats {
     order: 2;
   }
-  .sec--data {
+  .sec--groups {
     order: 3;
   }
-  .sec--device {
+  .sec--data {
     order: 4;
   }
-  .sec--ai {
+  .sec--device {
     order: 5;
   }
-  .sec--about {
+  .sec--recent {
     order: 6;
+  }
+  .sec--ai {
+    order: 7;
+  }
+  .sec--about {
+    order: 8;
   }
 }
