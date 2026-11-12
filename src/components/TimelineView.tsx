@@ -5,7 +5,7 @@ import { folderName, liveMemos, useApp } from '../lib/store';
 import { buildTimeline } from '../lib/timeline';
 import { useUI } from '../lib/ui';
 import { IconArrowDown, IconFolder, IconGear, IconImage, IconPin } from './Icons';
-import { SyncBadge } from './Sidebar';
+import { SyncBadge } from './SyncBadge';
 import { Topbar } from './Topbar';
 
 export function TimelineView() {

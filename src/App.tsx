@@ -1,19 +1,22 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { ChatPage } from './pages/ChatPage';
+import { OrganizePage } from './pages/OrganizePage';
+import { AccountPage } from './pages/AccountPage';
+import { LoginPage } from './pages/LoginPage';
 import { FoldersView } from './components/FoldersView';
+import { Rail } from './components/Rail';
 import { RecordView } from './components/RecordView';
-import { TimelineView } from './components/TimelineView';
 import { SheetHost } from './components/SheetHost';
-import { Sidebar } from './components/Sidebar';
+import { SidePanel } from './components/SidePanel';
 import { SpaceView } from './components/SpaceView';
 import { TabBar } from './components/TabBar';
+import { TimelineView } from './components/TimelineView';
 import { Toast } from './components/Toast';
-import { sync } from './lib/sync';
-import { useRoute } from './lib/router';
 import { initBackButton } from './lib/backbutton';
-import { LoginPage } from './pages/LoginPage';
-import { AccountPage } from './pages/AccountPage';
+import { navigate, useRoute } from './lib/router';
 import { persistNow, useApp } from './lib/store';
+import { sync } from './lib/sync';
 import type { Tab } from './lib/types';
 
 const ORDER: Record<Tab, number> = { record: 0, timeline: 1, space: 2, folders: 3 };
@@ -49,13 +52,27 @@ export default function App() {
       const meta = e.metaKey || e.ctrlKey;
       if (!meta) return;
       const key = e.key.toLowerCase();
+      if (key === '1') {
+        e.preventDefault();
+        navigate('/');
+      }
+      if (key === '2') {
+        e.preventDefault();
+        navigate('/organize');
+      }
+      if (key === '3') {
+        e.preventDefault();
+        navigate('/chat');
+      }
       if (key === 'n') {
         e.preventDefault();
+        navigate('/');
         useApp.getState().setTab('record');
         requestAnimationFrame(() => window.dispatchEvent(new Event('ssj:focus-composer')));
       }
       if (key === 'k') {
         e.preventDefault();
+        navigate('/');
         useApp.getState().setTab('space');
         requestAnimationFrame(() => {
           const input = document.querySelector<HTMLInputElement>('.search input');
@@ -83,26 +100,36 @@ export default function App() {
   if (route === '/login') return <LoginPage />;
   if (route === '/account') return <AccountPage />;
 
+  const isOrganize = route === '/organize';
+  const isChat = route === '/chat';
+
   return (
     <div className="app">
-      <Sidebar />
+      <Rail />
+      <SidePanel />
       <main className="stage">
-        <AnimatePresence mode="wait" initial={false} custom={dir}>
-          <motion.div
-            key={tab}
-            className="view"
-            custom={dir}
-            initial={{ opacity: 0, x: dir * 22 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -14 }}
-            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {tab === 'record' && <RecordView />}
-            {tab === 'timeline' && <TimelineView />}
-            {tab === 'space' && <SpaceView />}
-            {tab === 'folders' && <FoldersView />}
-          </motion.div>
-        </AnimatePresence>
+        {isOrganize ? (
+          <OrganizePage />
+        ) : isChat ? (
+          <ChatPage />
+        ) : (
+          <AnimatePresence mode="wait" initial={false} custom={dir}>
+            <motion.div
+              key={tab}
+              className="view"
+              custom={dir}
+              initial={{ opacity: 0, x: dir * 22 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: dir * -14 }}
+              transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {tab === 'record' && <RecordView />}
+              {tab === 'timeline' && <TimelineView />}
+              {tab === 'space' && <SpaceView />}
+              {tab === 'folders' && <FoldersView />}
+            </motion.div>
+          </AnimatePresence>
+        )}
         <TabBar />
       </main>
       <SheetHost />

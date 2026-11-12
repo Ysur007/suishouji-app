@@ -8,7 +8,7 @@ import { MenuHost, useMenu } from './ContextMenu';
 import { IconFolder, IconGear, IconUsers } from './Icons';
 import { MemoBubble } from './MemoBubble';
 import { memoActions } from './memoActions';
-import { SyncBadge } from './Sidebar';
+import { SyncBadge } from './SyncBadge';
 import { Topbar } from './Topbar';
 
 type Item =

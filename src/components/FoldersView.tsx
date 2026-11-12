@@ -5,7 +5,7 @@ import { useUI } from '../lib/ui';
 import { MenuHost, type MenuAction } from './ContextMenu';
 import { FolderTile, NewFolderTile } from './FolderTile';
 import { IconBack, IconEdit, IconFolder, IconPlus, IconTrash } from './Icons';
-import { SyncBadge } from './Sidebar';
+import { SyncBadge } from './SyncBadge';
 import { Topbar } from './Topbar';
 
 export function FoldersView() {

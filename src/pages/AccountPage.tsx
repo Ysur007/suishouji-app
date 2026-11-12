@@ -3,7 +3,7 @@ import { navigate } from '../lib/router';
 import { apiBase, defaultApiBase, setApiBase } from '../lib/endpoint';
 import { liveMemos, useApp } from '../lib/store';
 import { IconChevron, IconDevice, IconUser, IconUsers } from '../components/Icons';
-import { SyncBadge } from '../components/Sidebar';
+import { SyncBadge } from '../components/SyncBadge';
 
 /** 账号页：/account */
 export function AccountPage() {

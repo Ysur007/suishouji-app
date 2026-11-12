@@ -5,6 +5,15 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Store } from './store.js';
 import type { ClientMessage, Op, Peer, ServerMessage } from './types.js';
+import {
+  aiConfig,
+  chatLocal,
+  chatWithLlm,
+  organizeLocal,
+  organizeWithLlm,
+  type AiMemo,
+  type ChatMessage,
+} from './ai.js';
 
 // 三种运行形态：tsx 直跑（ESM）、Docker/Node（ESM）、Electron（esbuild 打成 CJS）
 const HERE =
@@ -110,6 +119,36 @@ function serveStatic(res: ServerResponse, pathname: string) {
   fs.createReadStream(file).pipe(res);
 }
 
+
+/** 把该用户可见的记录整理成 AI 需要的扁平结构 */
+function memosFor(
+  userId: string,
+  opts: { spaceId?: string; days?: number | null; folderId?: string | null } = {},
+): AiMemo[] {
+  const now = Date.now();
+  const out: AiMemo[] = [];
+  for (const r of store.allRecords(userId)) {
+    if (r.entity !== 'memo' || r.deleted) continue;
+    const text = String((r as Record<string, unknown>).text ?? '').trim();
+    if (!text) continue;
+    if (opts.spaceId && r.spaceId !== opts.spaceId) continue;
+    const createdAt = Number((r as Record<string, unknown>).createdAt ?? 0) || 0;
+    if (opts.days && opts.days > 0 && now - createdAt > opts.days * 86400000) continue;
+    const folderId = ((r as Record<string, unknown>).folderId ?? null) as string | null;
+    if (opts.folderId && folderId !== opts.folderId) continue;
+    out.push({
+      id: r.id,
+      text,
+      createdAt,
+      folderId,
+      spaceId: r.spaceId,
+      ownerName: String((r as Record<string, unknown>).ownerName ?? ''),
+      pinned: Boolean((r as Record<string, unknown>).pinned),
+    });
+  }
+  return out.sort((a, b) => a.createdAt - b.createdAt);
+}
+
 const server = http.createServer(async (req, res) => {
   // 移动端壳从 https://localhost 调接口属于跨域；这里放开 origin，鉴权仍靠 Bearer token
   res.setHeader('access-control-allow-origin', '*');
@@ -131,6 +170,7 @@ const server = http.createServer(async (req, res) => {
       records: store.recordCount,
       users: store.userCount,
       groups: store.groupCount,
+      ai: aiConfig().engine,
       clients: [...wss.clients].filter((c) => c.readyState === WebSocket.OPEN).length,
       uptime: Math.round((Date.now() - startedAt) / 1000),
     });
@@ -240,7 +280,88 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+
+  /* ----------------------------- AI ----------------------------- */
+
+  if (pathname === '/api/ai/status' && req.method === 'GET') {
+    const cfg = aiConfig();
+    return json(res, 200, { engine: cfg.engine, model: cfg.engine === 'llm' ? cfg.model : null });
+  }
+
+  if (pathname === '/api/ai/organize' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    try {
+      const body = JSON.parse(await readBody(req, 512 * 1024)) as {
+        spaceId?: string;
+        days?: number | null;
+        folderId?: string | null;
+      };
+      const days = body.days === null || body.days === undefined ? null : Number(body.days);
+      const memos = memosFor(user.id, {
+        spaceId: body.spaceId,
+        days: days && days > 0 ? days : null,
+        folderId: body.folderId ?? null,
+      });
+      const label =
+        days && days > 0 ? `最近 ${days} 天` : body.spaceId && body.spaceId.startsWith('g:') ? '群共享' : '全部记录';
+      const report =
+        aiConfig().engine === 'llm'
+          ? await organizeWithLlm(memos, label, days && days > 0 ? days : null)
+          : organizeLocal(memos, label, days && days > 0 ? days : null);
+      return json(res, 200, { report });
+    } catch (err) {
+      return json(res, 400, { error: (err as Error).message });
+    }
+  }
+
+  if (pathname === '/api/ai/chat' && req.method === 'POST') {
+    if (!user) return json(res, 401, { error: '未登录' });
+    const body = (await (async () => {
+      try {
+        return JSON.parse(await readBody(req, 512 * 1024)) as {
+          messages?: ChatMessage[];
+          spaceId?: string;
+        };
+      } catch {
+        return {};
+      }
+    })()) as { messages?: ChatMessage[]; spaceId?: string };
+
+    const messages = (Array.isArray(body.messages) ? body.messages : [])
+      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .slice(-10);
+    if (!messages.length) return json(res, 400, { error: '消息为空' });
+
+    res.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    });
+    const emit = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+    try {
+      const memos = memosFor(user.id, { spaceId: body.spaceId });
+      const cfg = aiConfig();
+      const result =
+        cfg.engine === 'llm' ? await chatWithLlm(memos, messages) : chatLocal(memos, messages);
+
+      // 逐段吐字：本地引擎也算好了，这里只是让阅读节奏像对话
+      const chunks = result.answer.match(/[^\n]{1,18}\n?|[\n]/g) ?? [result.answer];
+      for (const chunk of chunks) {
+        emit({ delta: chunk });
+        await new Promise((r) => setTimeout(r, 16));
+      }
+      emit({ done: true, refs: result.refs, engine: cfg.engine, model: cfg.engine === 'llm' ? cfg.model : null });
+    } catch (err) {
+      emit({ error: (err as Error).message });
+    }
+    res.end();
+    return;
+  }
+
   /* ----------------------------- 数据 ----------------------------- */
+
 
   if (pathname === '/api/snapshot') {
     if (!user) return json(res, 401, { error: '未登录' });

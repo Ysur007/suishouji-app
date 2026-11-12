@@ -1,34 +1,34 @@
 import { motion } from 'framer-motion';
-import { IconRecord, IconSpace, IconTimeline } from './Icons';
-import { useApp } from '../lib/store';
+import { IconChat, IconLayers, IconRecord } from './Icons';
+import { navigate, useRoute } from '../lib/router';
 
+/**
+ * 移动端一级导航：和桌面左侧的 Rail 一一对应，只是换成横向。
+ * 二级集合（视图、群、文件夹）走顶栏标题弹出的「导航」抽屉。
+ */
 export function TabBar() {
-  const tab = useApp((s) => s.tab);
-  const setTab = useApp((s) => s.setTab);
-  const setActiveSpace = useApp((s) => s.setActiveSpace);
-  const viewBucket = useApp((s) => s.viewBucket);
-  const active = tab === 'folders' ? 'space' : tab;
+  const route = useRoute();
 
   const tabs = [
-    { key: 'record' as const, label: '记录', icon: <IconRecord /> },
-    { key: 'timeline' as const, label: '时间线', icon: <IconTimeline /> },
-    { key: 'space' as const, label: '空间', icon: <IconSpace /> },
+    { path: '/', label: '记录', icon: <IconRecord /> },
+    { path: '/organize', label: '整理', icon: <IconLayers /> },
+    { path: '/chat', label: '对话', icon: <IconChat /> },
   ];
+
+  const active =
+    route === '/' ? '/' : route.startsWith('/organize') ? '/organize' : route.startsWith('/chat') ? '/chat' : '/';
 
   return (
     <nav className="tabbar" aria-label="主导航">
       <div className="tabbar__inner">
         {tabs.map((t) => (
           <button
-            key={t.key}
+            key={t.path}
             className="tabbar__item"
-            data-active={active === t.key}
-            onClick={() => {
-              if (t.key !== 'record') setActiveSpace(viewBucket);
-              setTab(t.key);
-            }}
+            data-active={active === t.path}
+            onClick={() => navigate(t.path)}
           >
-            {active === t.key && (
+            {active === t.path && (
               <motion.span
                 layoutId="tab-pill"
                 className="tabbar__pill"

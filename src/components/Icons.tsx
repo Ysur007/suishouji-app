@@ -203,6 +203,25 @@ export function IconImage(p: P) {
   );
 }
 
+export function IconChat(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <path d="M20.2 11.6c0 3.7-3.6 6.7-8.1 6.7-.9 0-1.8-.1-2.6-.3l-4 1.6 1-3.3c-1.5-1.2-2.4-2.8-2.4-4.7 0-3.7 3.6-6.7 8-6.7s8.1 3 8.1 6.7z" />
+      <path d="M9 11.2h.01M12 11.2h.01M15 11.2h.01" />
+    </svg>
+  );
+}
+
+export function IconLayers(p: P) {
+  return (
+    <svg {...svgProps(p)}>
+      <path d="M12 3.6l8 4.2-8 4.2-8-4.2 8-4.2z" />
+      <path d="M4 12.2l8 4.2 8-4.2" />
+      <path d="M4 16.4l8 4.2 8-4.2" />
+    </svg>
+  );
+}
+
 export function IconSpark(p: P) {
   return (
     <svg {...svgProps(p)}>

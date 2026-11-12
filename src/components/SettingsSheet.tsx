@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { downloadJson } from '../lib/format';
 import { liveFolders, liveMemos, useApp } from '../lib/store';
 import { IconDownload, IconUpload } from './Icons';
-import { SyncBadge } from './Sidebar';
+import { SyncBadge } from './SyncBadge';
 import { navigate } from '../lib/router';
 import { readAuth } from '../lib/auth';
 import { apiUrl } from '../lib/endpoint';
