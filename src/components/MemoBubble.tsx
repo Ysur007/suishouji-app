@@ -104,6 +104,17 @@ export function MemoBubble({
                 loading="lazy"
                 onClick={(e) => {
                   e.stopPropagation();
+                  // 长按图片已经弹了菜单，松手这一下不要再开预览
+                  if (press.longPressed.current) {
+                    press.longPressed.current = false;
+                    return;
+                  }
+                  // 纯图片消息里图片是唯一点得到的部分；多选态下这一下要算勾选，
+                  // 否则点图只会放大、永远选不中。非多选态仍然点开预览。
+                  if (selectable) {
+                    onPick?.();
+                    return;
+                  }
                   onImage(src);
                 }}
               />

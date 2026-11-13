@@ -1802,6 +1802,22 @@ textarea.field__input {
   .row__time {
     display: none;
   }
+
+  /* 长按气泡归自定义菜单管。
+   *
+   * 触屏上系统默认会先把文字选上（iOS 还会弹 callout、Android 先出选择手柄），
+   * 等菜单弹出来时选区还挂着，看起来就是「先选字、再弹菜单」。
+   * 触屏这里关掉选择与 callout，长按直接出菜单；桌面用精确指针，
+   * 双击选词 / 拖选 / Ctrl+C 都不受影响。
+   */
+  .bubble,
+  .bubble__text,
+  .bubble__tag,
+  .bubble__img {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 }
 
 

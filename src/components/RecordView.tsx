@@ -101,6 +101,14 @@ export function RecordView() {
     setConfirmDelete(false);
   }, [activeSpace, viewBucket]);
 
+  // Android 返回键：多选态下先退多选，而不是一路退到桌面（见 lib/backbutton.ts）。
+  // 用自定义事件而不是 Escape，避免和右键菜单 / 抽屉的关闭键抢同一个按键。
+  useEffect(() => {
+    const onExit = () => exitSelect();
+    window.addEventListener('ssj:exit-select', onExit);
+    return () => window.removeEventListener('ssj:exit-select', onExit);
+  }, []);
+
   const activeMemo = menu ? memos[menu.memoId] : null;
   const actions =
     activeMemo && !activeMemo.deleted

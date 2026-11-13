@@ -137,6 +137,10 @@ export function useLongPress(onLongPress: (point: { x: number; y: number }) => v
     timer.current = window.setTimeout(() => {
       if (!moved.current) {
         longPressed.current = true;
+        // 触屏上系统会在长按后先选中文字、再补一个 contextmenu，
+        // 菜单弹出来时选区还挂着，看着就像「先选字、再弹菜单」。
+        // 样式里已经把气泡的选择关掉了，这里再清一次，兜住仍会预选的老 WebView。
+        window.getSelection()?.removeAllRanges();
         navigator.vibrate?.(8);
         onLongPress(point);
       }
@@ -165,6 +169,8 @@ export function useLongPress(onLongPress: (point: { x: number; y: number }) => v
     longPressed,
     onContextMenu: (e: React.MouseEvent) => {
       e.preventDefault();
+      // 触摸长按已经弹过菜单，系统随后补发的 contextmenu 不再重复触发
+      if (longPressed.current) return;
       onLongPress({ x: e.clientX, y: e.clientY });
     },
   };

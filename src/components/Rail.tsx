@@ -10,6 +10,7 @@
 
 import { BrandGlyph, IconChat, IconLayers, IconRecord, IconUser } from './Icons';
 import { navigate, useRoute } from '../lib/router';
+import { goRecord } from '../lib/nav';
 import { useApp } from '../lib/store';
 
 const ITEMS = [
@@ -28,7 +29,7 @@ export function Rail() {
 
   return (
     <nav className="rail" aria-label="主导航">
-      <button className="rail__brand" aria-label="随手记" onClick={() => navigate('/')}>
+      <button className="rail__brand" aria-label="随手记" onClick={() => goRecord()}>
         <BrandGlyph width={17} height={17} />
       </button>
 
@@ -46,7 +47,7 @@ export function Rail() {
               data-tip={tip}
               aria-label={item.label}
               aria-current={active ? 'page' : undefined}
-              onClick={() => navigate(item.path)}
+              onClick={() => (item.path === '/' ? goRecord() : navigate(item.path))}
             >
               {item.icon}
             </button>

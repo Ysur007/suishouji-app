@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { IconChat, IconLayers, IconRecord, IconUser } from './Icons';
 import { navigate, useRoute } from '../lib/router';
+import { goRecord } from '../lib/nav';
 
 /**
  * 移动端一级导航：和桌面左侧的 Rail 一一对应，只是换成横向。
@@ -30,7 +31,7 @@ export function TabBar() {
             key={t.path}
             className="tabbar__item"
             data-active={active === t.path}
-            onClick={() => navigate(t.path)}
+            onClick={() => (t.path === '/' ? goRecord() : navigate(t.path))}
           >
             {active === t.path && (
               <motion.span

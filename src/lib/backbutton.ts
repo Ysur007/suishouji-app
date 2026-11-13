@@ -21,6 +21,7 @@ function hasOverlay(): boolean {
  *
  * 规则：
  *   浮层（图片预览 / 抽屉 / 菜单）→ 关掉那一层
+ *   记录页多选态 → 先退出多选，不退出页面
  *   二级路由（/login）→ 回应用
  *   一级页面（记录 / 整理 / 对话 / 我的、任何空间）→ 直接退到后台
  * 一级页面之间是平级的，不应该「先回记录页再退桌面」。
@@ -43,14 +44,21 @@ export function initBackButton() {
         return;
       }
 
-      // 3. /login 是独立页，回到应用首页
+      // 3. 多选态：返回键先退出多选。用底部那条「已选 N 条」判定，
+      //    不把选择状态提升到全局 store，退出由 RecordView 自己处理。
+      if (document.querySelector('.selBar')) {
+        window.dispatchEvent(new Event('ssj:exit-select'));
+        return;
+      }
+
+      // 4. /login 是独立页，回到应用首页
       //    （/account 现在是一级页面，和记录 / 整理 / 对话平级，不再单独回退）
       if (location.pathname === '/login') {
         navigate('/');
         return;
       }
 
-      // 4. 已经在一级页面（记录 / 时间线 / 空间 / 文件夹 / 任意群）：直接退到后台
+      // 5. 已经在一级页面（记录 / 时间线 / 空间 / 文件夹 / 任意群）：直接退到后台
       void CapApp.minimizeApp();
     } catch (err) {
       console.error('[backButton]', err);
